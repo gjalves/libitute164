@@ -1,0 +1,23 @@
+Source: libitute164
+Priority: optional
+Maintainer: Gustavo Junior Alves <gjalves@gjalves.com.br>
+Build-Depends: debhelper-compat (= 12)
+Standards-Version: 4.4.1
+Section: libs
+Homepage: <insert the upstream URL, if relevant>
+
+Package: libitute164-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libitute164BROKEN (= ${binary:Version}), ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
+
+Package: libitute164
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ITU-T E.164 Phone Number Manipulation Library
+ A C library for handling phone numbers in the ITU-T E.164 standard, supporting various types of phone numbers such as global, geographic, and group numbers.
+ Provides utilities for initialization, value setting, digit manipulation, and more.

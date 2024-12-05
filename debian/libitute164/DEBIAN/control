@@ -1,0 +1,12 @@
+Package: libitute164
+Version: 1.0.0-1
+Architecture: amd64
+Maintainer: Gustavo Junior Alves <gjalves@gjalves.com.br>
+Installed-Size: 10
+Section: libs
+Priority: optional
+Multi-Arch: same
+Homepage: <insert the upstream URL, if relevant>
+Description: ITU-T E.164 Phone Number Manipulation Library
+ A C library for handling phone numbers in the ITU-T E.164 standard, supporting various types of phone numbers such as global, geographic, and group numbers.
+ Provides utilities for initialization, value setting, digit manipulation, and more.

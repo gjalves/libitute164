@@ -1,0 +1,13 @@
+Package: libitute164-dev
+Source: libitute164
+Version: 1.0.0-1
+Architecture: amd64
+Maintainer: Gustavo Junior Alves <gjalves@gjalves.com.br>
+Installed-Size: 102
+Depends: libitute164BROKEN (= 1.0.0-1)
+Section: libdevel
+Priority: optional
+Multi-Arch: same
+Homepage: <insert the upstream URL, if relevant>
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>

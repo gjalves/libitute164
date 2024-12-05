@@ -6,4 +6,4 @@ input: input.o ../libitute164.a
 	$(CC) $(CFLAGS) -Llib -o $@ $^ -lncurses
 
 clean:
-	rm -f *.o
+	rm -f *.o input
