@@ -31,6 +31,9 @@ typedef struct {
     uint64_t raw_extension;
     enum itu_t_e123_type_enum e123_type;
     itu_t_e164_cc_t cc;
+    itu_t_e164_context_t context;
+    uint8_t input_country_explicit;
+    uint8_t input_area_explicit;
     union {
         struct {
             enum itu_t_area_type_enum type;
@@ -74,35 +77,97 @@ typedef struct {
 } itu_t_e164_cc_t;
 ```
 
-## Main Functions
+## API Reference
 
-### Initialization
+### Number Lifecycle
+
 ```c
 void itu_t_e164_init(itu_t_e164_t *e164);
-```
-Initializes an `itu_t_e164_t` structure.
-
-### Setting Values
-```c
+void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context);
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
-```
-Sets the value of a phone number.
-
-### Retrieving Values
-```c
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
+ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
+int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
+int itu_t_e164_del_digit(itu_t_e164_t *e164);
 ```
-Retrieves the value of a number formatted as a string.
 
-### Digit Manipulation
-- **Add digit**:
-  ```c
-  int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
-  ```
-- **Remove digit**:
-  ```c
-  int itu_t_e164_del_digit(itu_t_e164_t *e164);
-  ```
+`itu_t_e164_init()` zeroes an `itu_t_e164_t` instance. Call it before using a
+number.
+
+`itu_t_e164_set_context()` sets or clears the default locality and input
+policy. Passing `NULL` clears the context. A context is stored per
+`itu_t_e164_t` instance.
+
+`itu_t_e164_set_value()` parses a formatted or unformatted input string,
+normalizes it into `e164->value`, and refreshes the derived fields in
+`e164->cc` and `e164->number`. Passing `NULL` clears the number while keeping
+the current context. Input that exceeds the valid length or fails regulatory
+rules is truncated to the accepted prefix. With context restrictions, values
+outside the restricted country or area are rejected.
+
+`itu_t_e164_get_value()` writes the complete international presentation, such
+as `+55 (19) 91234-5678`. It returns the number of bytes that would be written
+by the internal formatter. When the number is empty, the historical complete
+presentation is `+`.
+
+`itu_t_e164_get_context_value()` writes the presentation relative to the
+current context. In an area-restricted Brazilian context, for example,
+`+55 (19) 91234-5678` is presented as `91234-5678`.
+
+`itu_t_e164_add_digit()` and `itu_t_e164_del_digit()` are low-level digit
+editing helpers. They update the same derived fields as `set_value()`, but
+they accept digits only and do not apply formatted input prefixes like `+` or
+`(`.
+
+### Context
+
+```c
+typedef struct {
+    uint16_t country_code;
+    uint32_t area_code;
+    uint8_t restriction;
+    uint8_t accept_alphanumeric;
+} itu_t_e164_context_t;
+```
+
+`country_code` is the default DDI. `area_code` is the default DDD/NDC inside
+that country. Leaving `country_code` as zero disables default locality.
+
+`restriction` controls whether the context is only a default or also a policy:
+
+```c
+#define ITU_T_E164_CONTEXT_RESTRICT_NONE 0
+#define ITU_T_E164_CONTEXT_RESTRICT_COUNTRY 1
+#define ITU_T_E164_CONTEXT_RESTRICT_AREA 2
+```
+
+`ITU_T_E164_CONTEXT_RESTRICT_NONE` keeps the policy open. Local input uses the
+default context, but explicit `+` or `(` input can escape it.
+
+`ITU_T_E164_CONTEXT_RESTRICT_COUNTRY` accepts only numbers in the context
+country. `ITU_T_E164_CONTEXT_RESTRICT_AREA` accepts only numbers in the
+context country and area.
+
+When `accept_alphanumeric` is non-zero, `itu_t_e164_set_value()` accepts
+letters and maps them through the telephone keypad before validation:
+`ABC -> 2`, `DEF -> 3`, `GHI -> 4`, `JKL -> 5`, `MNO -> 6`, `PQRS -> 7`,
+`TUV -> 8`, and `WXYZ -> 9`.
+
+### Lookup Helpers
+
+```c
+enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
+enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
+const char *itu_t_e164_cc_2_country(int country_code);
+const char *itu_t_e164_cc_2_national_prefix(int country_code);
+const char *itu_t_e164_cc_2_international_prefix(int country_code);
+struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
+```
+
+These functions expose the active numbering plan. Built-in tables are used
+when no external rule overrides the requested entry. Country tags use the
+`ll_CC` form, such as `pt_BR`; missing country tags and prefixes return
+`NULL`.
 
 ### External Numbering Plans
 The library can load numbering plan data from a text file at runtime. Loaded
@@ -119,12 +184,17 @@ int itu_t_e164_load_plan_memory(const char *data, size_t size);
 int itu_t_e164_load_default_plan(void);
 const char *itu_t_e164_plan_error(void);
 void itu_t_e164_reset_plan(void);
-const char *itu_t_e164_cc_2_country(int country_code);
-const char *itu_t_e164_cc_2_national_prefix(int country_code);
-const char *itu_t_e164_cc_2_international_prefix(int country_code);
-void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context);
-ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 ```
+
+`itu_t_e164_load_plan_file()` loads from a filesystem path.
+`itu_t_e164_load_plan_fp()` reads from an existing `FILE *`.
+`itu_t_e164_load_plan_memory()` reads exactly `size` bytes from memory; the
+buffer does not need to be NUL-terminated.
+
+All load functions return `0` on success and `-1` on failure. On failure,
+`itu_t_e164_plan_error()` returns a human-readable error string. Successful
+loads clear the previous error. `itu_t_e164_reset_plan()` discards the active
+external plan and returns lookups to built-in fallback data.
 
 Plan files use whitespace-separated directives. Masks containing spaces must be
 quoted.
@@ -139,11 +209,6 @@ subscriber 55 * ^9[0-9]{0,8}$ #####-####
 subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
 ```
 
-Country tags use the `ll_CC` form, such as `pt_BR`. The lookup returns the
-loaded string for the country code, or `NULL` when the loaded plan does not
-define one. Dial prefixes are regulatory data for interpreting national and
-international dialing strings.
-
 Default locality is application context, not numbering-plan data. Set it on an
 `itu_t_e164_t` instance to accept national or local input without `+`:
 
@@ -155,17 +220,7 @@ itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */
 itu_t_e164_set_value(&e164, "019912345678"); /* +55 (19) 91234-5678 */
 ```
 
-`itu_t_e164_get_value()` returns the complete international value.
-`itu_t_e164_get_context_value()` applies `context.restriction`.
-`ITU_T_E164_CONTEXT_RESTRICT_NONE` keeps an open policy: context defaults are
-used for local input, but explicit `+` and `(` input remains visible.
-`ITU_T_E164_CONTEXT_RESTRICT_COUNTRY` accepts only the context country and hides
-that country in the context value. `ITU_T_E164_CONTEXT_RESTRICT_AREA` accepts
-only the context country and area, hiding both in the context value.
-
-Set `context.accept_alphanumeric` to a non-zero value to accept letters in
-input strings. Letters are translated to telephone keypad digits before the
-number is normalized, for example `FLOWERS` becomes `3569377`.
+See the Context section for the restriction and alphanumeric input policy.
 
 The repository includes `data/e164-plan.txt` and a validator:
 
@@ -187,13 +242,6 @@ benchmark`.
 `itu_t_e164_load_default_plan()` first checks the `LIBITUTE164_PLAN`
 environment variable, then `/etc/libitute164/e164-plan.txt`, then
 `/usr/share/libitute164/e164-plan.txt`.
-
-### Type Determination
-```c
-enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
-enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
-```
-Determines the number or area code type based on country or area code.
 
 ## Usage Example
 
