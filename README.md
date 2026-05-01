@@ -196,8 +196,10 @@ All load functions return `0` on success and `-1` on failure. On failure,
 loads clear the previous error. `itu_t_e164_reset_plan()` discards the active
 external plan and returns lookups to built-in fallback data.
 
-Plan files use whitespace-separated directives. Masks containing spaces must be
-quoted.
+Plan files are UTF-8-compatible text files using one directive per line.
+Fields are separated by ASCII whitespace. Empty lines are ignored. Lines whose
+first non-whitespace token starts with `#` are comments. Double quotes can be
+used around a field that contains spaces, which is mainly useful for masks.
 
 ```text
 cc 55 number
@@ -208,6 +210,33 @@ area 55 19 number
 subscriber 55 * ^9[0-9]{0,8}$ #####-####
 subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
 ```
+
+Supported directives:
+
+```text
+cc <country-code> <unknown|incomplete|reserved|spare|number|geographic|global|groups|trials>
+country <country-code> <ll_CC>
+national-prefix <country-code> <digits>
+international-prefix <country-code> <digits>
+area <country-code> <area-code> <unknown|incomplete|number>
+subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask>
+```
+
+`country-code` must be in the range `0..999`. `area-code` must be in the range
+`0..9999`. Country tags must use the `ll_CC` form, such as `pt_BR`. Dial
+prefixes must contain digits only.
+
+`cc` defines how a country code is classified. `area` defines the national
+destination code hierarchy for countries whose type is `number`. Use
+`incomplete` entries for prefixes that need more digits before they become a
+complete area code.
+
+`subscriber` defines validation and formatting for the subscriber part. The
+NDC regex is matched against the area code; use `*` to match any area code.
+The subscriber regex is matched against the subscriber number. The mask must
+contain at least one `#`; each `#` consumes one subscriber digit and any other
+character is copied literally to the formatted output. Subscriber rules are
+evaluated in file order for the country.
 
 Default locality is application context, not numbering-plan data. Set it on an
 `itu_t_e164_t` instance to accept national or local input without `+`:
