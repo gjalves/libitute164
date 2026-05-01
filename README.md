@@ -226,6 +226,10 @@ subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask>
 `0..9999`. Country tags must use the `ll_CC` form, such as `pt_BR`. Dial
 prefixes must contain digits only.
 
+The current `country` directive stores one tag per country code. Shared E.164
+country codes therefore use a representative/default tag until the file format
+has first-class support for multiple territories behind the same code.
+
 `cc` defines how a country code is classified. `area` defines the national
 destination code hierarchy for countries whose type is `number`. Use
 `incomplete` entries for prefixes that need more digits before they become a
