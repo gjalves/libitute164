@@ -175,7 +175,14 @@ make check-plan
 make check
 make sanitize
 make ci
+make benchmark
 ```
+
+`make benchmark` builds and runs `tools/bench-validate`, a microbenchmark for
+the phone-number validation path. Pass an iteration count to the tool directly,
+for example `tools/bench-validate 1000000`. For comparable results, build with
+the same compiler flags each time, such as `make clean && make CFLAGS='-O2 -g'
+benchmark`.
 
 `itu_t_e164_load_default_plan()` first checks the `LIBITUTE164_PLAN`
 environment variable, then `/etc/libitute164/e164-plan.txt`, then
