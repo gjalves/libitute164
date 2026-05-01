@@ -18,6 +18,40 @@
   - Determination of number and area code types.
   - Masks and regular expressions associated with national and international numbers.
 
+## JavaScript Browser Package
+
+The repository also includes a browser-first JavaScript implementation in
+`js/`. It reads the same `e164-plan.txt` format and keeps the loaded plan in an
+explicit `E164Plan` instance, so browser applications can fetch or bundle the
+plan text themselves:
+
+```js
+import { E164Number, E164Plan, RESTRICT_AREA } from "@itute164/e164";
+
+const planText = await fetch("/e164-plan.txt").then((response) => response.text());
+const plan = E164Plan.fromText(planText);
+
+const phone = new E164Number(plan, {
+  countryCode: 55,
+  areaCode: 19,
+  restriction: RESTRICT_AREA,
+  acceptAlphanumeric: true,
+});
+
+phone.setValue("912345678");
+phone.value;             // "5519912345678"
+phone.getValue();        // "+55 (19) 91234-5678"
+phone.getContextValue(); // "91234-5678"
+phone.getCountry();      // "pt_BR"
+```
+
+Run the JavaScript tests with:
+
+```sh
+cd js
+npm test
+```
+
 ## Data Structures
 
 ### `itu_t_e164_t`

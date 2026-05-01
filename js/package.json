@@ -1,0 +1,14 @@
+{
+  "name": "@itute164/e164",
+  "version": "0.1.0",
+  "description": "Browser-first ITU-T E.164 phone number parser using libitute164 plan files.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}
