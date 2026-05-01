@@ -33,11 +33,19 @@ function numericValue(input) {
 }
 
 function applyContext() {
-  const restriction = Number(fields.restriction.value);
+  const countryCode = numericValue(fields.country);
+  const areaCode = countryCode === 0 ? 0 : numericValue(fields.area);
+  let restriction = Number(fields.restriction.value);
+
+  if (!restrictions.has(restriction) || countryCode === 0)
+    restriction = RESTRICT_NONE;
+  else if (restriction === RESTRICT_AREA && areaCode === 0)
+    restriction = RESTRICT_COUNTRY;
+
   phone.setContext({
-    countryCode: numericValue(fields.country),
-    areaCode: numericValue(fields.area),
-    restriction: restrictions.has(restriction) ? restriction : RESTRICT_NONE,
+    countryCode,
+    areaCode,
+    restriction,
     acceptAlphanumeric: fields.alphanumeric.checked,
   });
 }
@@ -63,9 +71,10 @@ function phoneDisplayValue() {
 function syncPhoneField() {
   const display = phoneDisplayValue();
   fields.number.value = display;
-  if (document.activeElement === fields.number) {
-    fields.number.setSelectionRange(display.length, display.length);
-  }
+}
+
+function phoneSelectionIsFull() {
+  return fields.number.selectionStart === 0 && fields.number.selectionEnd === fields.number.value.length;
 }
 
 function render() {
@@ -99,10 +108,15 @@ function normalizePhoneInput(rawInput) {
   return accepted;
 }
 
-function updateFromInput(nextInput) {
+function updateFromInput(nextInput, selectAll = false) {
   applyContext();
   phoneInput = normalizePhoneInput(nextInput);
   render();
+
+  if (selectAll && document.activeElement === fields.number)
+    fields.number.select();
+  else if (document.activeElement === fields.number)
+    fields.number.setSelectionRange(fields.number.value.length, fields.number.value.length);
 }
 
 function rebuildFromContext() {
@@ -110,10 +124,15 @@ function rebuildFromContext() {
 }
 
 function insertPhoneText(text) {
-  updateFromInput(phoneInput + text);
+  updateFromInput(phoneSelectionIsFull() ? text : phoneInput + text);
 }
 
 function deletePhoneText() {
+  if (phoneSelectionIsFull()) {
+    updateFromInput("");
+    return;
+  }
+
   if (phoneInput.length === 0) return;
   updateFromInput(phoneInput.slice(0, -1));
 }
@@ -135,10 +154,18 @@ fields.number.addEventListener("beforeinput", (event) => {
 });
 
 fields.number.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+    return;
+  }
+
   if (event.key === "Backspace" || event.key === "Delete") {
     event.preventDefault();
     deletePhoneText();
   }
+});
+
+fields.number.addEventListener("focus", () => {
+  fields.number.select();
 });
 
 for (const input of [fields.country, fields.area, fields.restriction, fields.alphanumeric]) {
