@@ -316,7 +316,7 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
         mvwprintw(win, 9, 2, "%-24s", "");
 
     mvwprintw(win, 9, 34, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
-    mvwprintw(win, 10, 2, "TAB alterna campos. Espaco/setas alteram a restricao. Enter conclui.");
+    mvwprintw(win, 10, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
     wmove(win, state->field == FIELD_PHONE ? 6 : state->field + 2, state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
     wrefresh(win);
 }
@@ -324,6 +324,11 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
 static void next_field(struct input_state *state)
 {
     state->field = (state->field + 1) % FIELD_TOTAL;
+}
+
+static void previous_field(struct input_state *state)
+{
+    state->field = state->field == 0 ? FIELD_TOTAL - 1 : state->field - 1;
 }
 
 static int append_to_field(struct input_state *state, enum input_field field, int ch)
@@ -419,8 +424,10 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
 
         if(ch == '\n' || ch == '\r') {
             break;
-        } else if(ch == '\t') {
+        } else if(ch == '\t' || ch == KEY_DOWN) {
             next_field(&state);
+        } else if(ch == KEY_BTAB || ch == KEY_UP) {
+            previous_field(&state);
         } else if(state.field == FIELD_PHONE) {
             handle_phone_key(&state, e164, ch);
         } else {
