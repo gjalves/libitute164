@@ -40,10 +40,7 @@ static void load_numbering_plan(void)
 
 static const char *known_country(itu_t_e164_t *e164)
 {
-    if(e164->cc.type == ITU_T_UNKNOWN || e164->cc.type == ITU_T_INCOMPLETE)
-        return NULL;
-
-    return itu_t_e164_cc_2_country(e164->cc.value);
+    return itu_t_e164_get_country(e164);
 }
 
 static unsigned long parse_number(const char *value)

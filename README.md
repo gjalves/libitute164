@@ -159,6 +159,8 @@ letters and maps them through the telephone keypad before validation:
 enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
 const char *itu_t_e164_cc_2_country(int country_code);
+const char *itu_t_e164_area_2_country(int country_code, int area_code);
+const char *itu_t_e164_get_country(const itu_t_e164_t *e164);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
@@ -167,7 +169,10 @@ struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 These functions expose the active numbering plan. Built-in tables are used
 when no external rule overrides the requested entry. Country tags use the
 `ll_CC` form, such as `pt_BR`; missing country tags and prefixes return
-`NULL`.
+`NULL`. `itu_t_e164_area_2_country()` returns an area-specific country tag
+when one exists and otherwise falls back to the country-code tag.
+`itu_t_e164_get_country()` applies the same lookup to an already parsed
+number.
 
 ### External Numbering Plans
 The library can load numbering plan data from a text file at runtime. Loaded
@@ -204,6 +209,7 @@ used around a field that contains spaces, which is mainly useful for masks.
 ```text
 cc 55 number
 country 55 pt_BR
+area-country 1 416 en_CA
 national-prefix 55 0
 international-prefix 55 00
 area 55 19 number
@@ -216,6 +222,7 @@ Supported directives:
 ```text
 cc <country-code> <unknown|incomplete|reserved|spare|number|geographic|global|groups|trials>
 country <country-code> <ll_CC>
+area-country <country-code> <area-code> <ll_CC>
 national-prefix <country-code> <digits>
 international-prefix <country-code> <digits>
 area <country-code> <area-code> <unknown|incomplete|number>
@@ -229,6 +236,8 @@ prefixes must contain digits only.
 The current `country` directive stores one tag per country code. Shared E.164
 country codes therefore use a representative/default tag until the file format
 has first-class support for multiple territories behind the same code.
+`area-country` refines that tag for numbering plans where the national
+destination code identifies the country or territory, such as NANP `+1` NPAs.
 
 `cc` defines how a country code is classified. `area` defines the national
 destination code hierarchy for countries whose type is `number`. Use

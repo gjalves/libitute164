@@ -309,6 +309,9 @@ static void e164_test_load_plan_file(void **state)
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
     assert_string_equal("pt_BR", itu_t_e164_cc_2_country(55));
+    assert_string_equal("en_US", itu_t_e164_cc_2_country(1));
+    assert_string_equal("en_CA", itu_t_e164_area_2_country(1, 416));
+    assert_string_equal("en_US", itu_t_e164_area_2_country(1, 469));
     assert_string_equal("0", itu_t_e164_cc_2_national_prefix(55));
     assert_string_equal("00", itu_t_e164_cc_2_international_prefix(55));
 
@@ -321,6 +324,19 @@ static void e164_test_load_plan_file(void **state)
     itu_t_e164_set_value(&e164, "+551912345678");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+55 (19) 1234-5678", buffer);
+    assert_string_equal("pt_BR", itu_t_e164_get_country(&e164));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "+14165550123");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+1 (416) 555-0123", buffer);
+    assert_string_equal("en_CA", itu_t_e164_get_country(&e164));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "+14691234567");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+1 (469) 123-4567", buffer);
+    assert_string_equal("en_US", itu_t_e164_get_country(&e164));
     itu_t_e164_reset_plan();
 }
 
@@ -533,6 +549,34 @@ static void e164_test_load_plan_memory(void **state)
     itu_t_e164_reset_plan();
 }
 
+static void e164_test_area_country_override(void **state)
+{
+    (void) state;
+    static const char plan[] =
+        "cc 1 incomplete\n"
+        "cc 12 incomplete\n"
+        "cc 123 number\n"
+        "country 123 pt_BR\n"
+        "area-country 123 4 es_AR\n"
+        "area 123 0 incomplete\n"
+        "area 123 4 number\n"
+        "subscriber 123 * ^[0-9]{0,2}$ ##\n";
+    itu_t_e164_t e164;
+    char buffer[BUFSIZ];
+
+    assert_int_equal(0, itu_t_e164_load_plan_memory(plan, sizeof(plan) - 1));
+    assert_string_equal("es_AR", itu_t_e164_area_2_country(123, 4));
+    assert_string_equal("pt_BR", itu_t_e164_area_2_country(123, 5));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "+123456");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+123 (4) 56", buffer);
+    assert_string_equal("es_AR", itu_t_e164_get_country(&e164));
+
+    itu_t_e164_reset_plan();
+}
+
 static void e164_test_load_plan_memory_without_nul(void **state)
 {
     (void) state;
@@ -681,6 +725,7 @@ int main(void) {
         cmocka_unit_test(e164_test_context_alphanumeric_input),
         cmocka_unit_test(e164_test_load_plan_override),
         cmocka_unit_test(e164_test_load_plan_memory),
+        cmocka_unit_test(e164_test_area_country_override),
         cmocka_unit_test(e164_test_load_plan_memory_without_nul),
         cmocka_unit_test(e164_test_load_plan_invalid_keeps_active_plan),
         cmocka_unit_test(e164_test_load_plan_memory_invalid_keeps_active_plan),

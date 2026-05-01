@@ -3,6 +3,7 @@
 # Format:
 #   cc <country-code> <unknown|incomplete|reserved|spare|number|geographic|global|groups|trials>
 #   country <country-code> <ll_CC>
+#   area-country <country-code> <area-code> <ll_CC>
 #   national-prefix <country-code> <digits>
 #   international-prefix <country-code> <digits>
 #   area <country-code> <area-code> <unknown|incomplete|number>
@@ -222,6 +223,92 @@ country 994 az_AZ
 country 995 ka_GE
 country 996 ky_KG
 country 998 uz_UZ
+
+# NANP (+1) country/territory overrides by NPA. The country 1 entry remains
+# the fallback for United States NPAs not listed here.
+area-country 1 204 en_CA
+area-country 1 226 en_CA
+area-country 1 236 en_CA
+area-country 1 242 en_BS
+area-country 1 246 en_BB
+area-country 1 249 en_CA
+area-country 1 250 en_CA
+area-country 1 257 en_CA
+area-country 1 263 en_CA
+area-country 1 264 en_AI
+area-country 1 268 en_AG
+area-country 1 273 en_CA
+area-country 1 284 en_VG
+area-country 1 289 en_CA
+area-country 1 306 en_CA
+area-country 1 340 en_VI
+area-country 1 343 en_CA
+area-country 1 345 en_KY
+area-country 1 354 en_CA
+area-country 1 365 en_CA
+area-country 1 367 en_CA
+area-country 1 368 en_CA
+area-country 1 382 en_CA
+area-country 1 403 en_CA
+area-country 1 416 en_CA
+area-country 1 418 en_CA
+area-country 1 428 en_CA
+area-country 1 431 en_CA
+area-country 1 437 en_CA
+area-country 1 438 en_CA
+area-country 1 441 en_BM
+area-country 1 450 en_CA
+area-country 1 468 en_CA
+area-country 1 473 en_GD
+area-country 1 474 en_CA
+area-country 1 506 en_CA
+area-country 1 514 en_CA
+area-country 1 519 en_CA
+area-country 1 548 en_CA
+area-country 1 579 en_CA
+area-country 1 581 en_CA
+area-country 1 584 en_CA
+area-country 1 587 en_CA
+area-country 1 604 en_CA
+area-country 1 613 en_CA
+area-country 1 639 en_CA
+area-country 1 647 en_CA
+area-country 1 649 en_TC
+area-country 1 658 en_JM
+area-country 1 664 en_MS
+area-country 1 670 en_MP
+area-country 1 671 en_GU
+area-country 1 672 en_CA
+area-country 1 683 en_CA
+area-country 1 684 en_AS
+area-country 1 705 en_CA
+area-country 1 709 en_CA
+area-country 1 721 nl_SX
+area-country 1 742 en_CA
+area-country 1 753 en_CA
+area-country 1 758 en_LC
+area-country 1 767 en_DM
+area-country 1 778 en_CA
+area-country 1 780 en_CA
+area-country 1 782 en_CA
+area-country 1 784 en_VC
+area-country 1 787 es_PR
+area-country 1 807 en_CA
+area-country 1 809 es_DO
+area-country 1 819 en_CA
+area-country 1 825 en_CA
+area-country 1 829 es_DO
+area-country 1 849 es_DO
+area-country 1 867 en_CA
+area-country 1 868 en_TT
+area-country 1 869 en_KN
+area-country 1 873 en_CA
+area-country 1 876 en_JM
+area-country 1 879 en_CA
+area-country 1 902 en_CA
+area-country 1 905 en_CA
+area-country 1 939 es_PR
+area-country 1 942 en_CA
 
 national-prefix 1 1
 national-prefix 31 0

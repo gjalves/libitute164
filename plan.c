@@ -14,6 +14,12 @@ struct plan_area {
     struct plan_area *next;
 };
 
+struct plan_area_country {
+    int area_code;
+    char *country;
+    struct plan_area_country *next;
+};
+
 struct plan_data {
     unsigned char cc_set[1000];
     enum itu_t_e164_type_enum cc[1000];
@@ -21,6 +27,7 @@ struct plan_data {
     char *national_prefixes[1000];
     char *international_prefixes[1000];
     struct plan_area *areas[1000];
+    struct plan_area_country *area_countries[1000];
     struct cc_regex *subscribers[1000];
     size_t subscriber_count[1000];
 };
@@ -165,6 +172,18 @@ static void free_plan_data(struct plan_data *plan)
         }
         plan->areas[i] = NULL;
 
+        {
+            struct plan_area_country *area_country = plan->area_countries[i];
+
+            while(area_country != NULL) {
+                struct plan_area_country *next = area_country->next;
+                free(area_country->country);
+                free(area_country);
+                area_country = next;
+            }
+            plan->area_countries[i] = NULL;
+        }
+
         if(plan->subscribers[i] != NULL) {
             size_t j;
             for(j = 0; j < plan->subscriber_count[i]; j++)
@@ -242,6 +261,38 @@ static int add_country(struct plan_data *plan, int country_code, const char *cou
 
     free(plan->countries[country_code]);
     plan->countries[country_code] = copy;
+    return 0;
+}
+
+static int add_area_country(struct plan_data *plan, int country_code, int area_code, const char *country)
+{
+    struct plan_area_country *area_country;
+    char *copy;
+
+    if(validate_country_tag(country) != 0)
+        return -1;
+
+    copy = plan_strdup(country);
+    if(copy == NULL) return -1;
+
+    for(area_country = plan->area_countries[country_code]; area_country != NULL; area_country = area_country->next) {
+        if(area_country->area_code == area_code) {
+            free(area_country->country);
+            area_country->country = copy;
+            return 0;
+        }
+    }
+
+    area_country = malloc(sizeof(*area_country));
+    if(area_country == NULL) {
+        free(copy);
+        return -1;
+    }
+
+    area_country->area_code = area_code;
+    area_country->country = copy;
+    area_country->next = plan->area_countries[country_code];
+    plan->area_countries[country_code] = area_country;
     return 0;
 }
 
@@ -362,6 +413,19 @@ static int parse_line(struct plan_data *plan, char *line, unsigned long line_no)
             return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
         if(add_country(plan, country_code, argv[2]) != 0)
             return set_plan_error(line_no, "invalid country tag '%s'", argv[2]);
+        return 0;
+    }
+
+    if(strcmp(argv[0], "area-country") == 0) {
+        int area_code;
+
+        if(argc != 4) return set_plan_error(line_no, "area-country requires 3 arguments");
+        if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
+            return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
+        if(parse_int_range(argv[2], 0, 9999, &area_code) != 0)
+            return set_plan_error(line_no, "invalid area code '%s'", argv[2]);
+        if(add_area_country(plan, country_code, area_code, argv[3]) != 0)
+            return set_plan_error(line_no, "invalid country tag '%s'", argv[3]);
         return 0;
     }
 
@@ -524,6 +588,40 @@ const char *itu_t_e164_cc_2_country(int country_code)
         return NULL;
 
     return active_plan.countries[country_code];
+}
+
+const char *itu_t_e164_plan_area_country_lookup(int country_code, int area_code)
+{
+    struct plan_area_country *area_country;
+
+    if(country_code < 0 || country_code >= 1000)
+        return NULL;
+
+    for(area_country = active_plan.area_countries[country_code]; area_country != NULL; area_country = area_country->next) {
+        if(area_country->area_code == area_code)
+            return area_country->country;
+    }
+
+    return NULL;
+}
+
+const char *itu_t_e164_area_2_country(int country_code, int area_code)
+{
+    const char *country;
+
+    country = itu_t_e164_plan_area_country_lookup(country_code, area_code);
+    return country != NULL ? country : itu_t_e164_cc_2_country(country_code);
+}
+
+const char *itu_t_e164_get_country(const itu_t_e164_t *e164)
+{
+    if(e164 == NULL || e164->cc.type == ITU_T_UNKNOWN || e164->cc.type == ITU_T_INCOMPLETE)
+        return NULL;
+
+    if(e164->cc.type == ITU_T_NUMBER && e164->number.ndc_len > 0)
+        return itu_t_e164_area_2_country(e164->cc.value, e164->number.ndc);
+
+    return itu_t_e164_cc_2_country(e164->cc.value);
 }
 
 const char *itu_t_e164_cc_2_national_prefix(int country_code)

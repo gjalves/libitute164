@@ -118,6 +118,8 @@ struct cc_regex {
 
 enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
 const char *itu_t_e164_cc_2_country(int country_code);
+const char *itu_t_e164_area_2_country(int country_code, int area_code);
+const char *itu_t_e164_get_country(const itu_t_e164_t *e164);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
