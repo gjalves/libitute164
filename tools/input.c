@@ -5,7 +5,7 @@
 #include <string.h>
 #include <libitute164.h>
 
-#define INPUT_WIDTH 62
+#define INPUT_WIDTH 72
 #define PHONE_INPUT_SIZE 16
 
 enum input_field {
@@ -182,13 +182,68 @@ static const char *restriction_label(const char *value)
     }
 }
 
+static unsigned long restriction_value(const struct input_state *state)
+{
+    return parse_number(state->restriction);
+}
+
+static void set_restriction_value(struct input_state *state, unsigned long value)
+{
+    if(value > ITU_T_E164_CONTEXT_RESTRICT_AREA)
+        value = ITU_T_E164_CONTEXT_RESTRICT_NONE;
+
+    if(value == ITU_T_E164_CONTEXT_RESTRICT_NONE) {
+        state->restriction[0] = 0;
+        state->restriction_len = 0;
+        return;
+    }
+
+    snprintf(state->restriction, sizeof(state->restriction), "%lu", value);
+    state->restriction_len = strlen(state->restriction);
+}
+
+static void cycle_restriction(struct input_state *state, int direction)
+{
+    unsigned long value = restriction_value(state);
+
+    if(direction < 0)
+        value = value == 0 ? ITU_T_E164_CONTEXT_RESTRICT_AREA : value - 1;
+    else
+        value = (value + 1) % (ITU_T_E164_CONTEXT_RESTRICT_AREA + 1);
+
+    set_restriction_value(state, value);
+}
+
 static void draw_field(WINDOW *win, int y, const char *label, const char *value, int active)
 {
     mvwprintw(win, y, 2, "%s", label);
     if(active)
         wattron(win, A_REVERSE);
-    mvwprintw(win, y, 14, "%-14s", value);
+    mvwprintw(win, y, 18, "%-20s", value);
     if(active)
+        wattroff(win, A_REVERSE);
+}
+
+static void draw_restriction_field(WINDOW *win, int y, const struct input_state *state)
+{
+    unsigned long value = restriction_value(state);
+    int active = state->field == FIELD_RESTRICTION;
+
+    mvwprintw(win, y, 2, "Restricao");
+    if(active && value == ITU_T_E164_CONTEXT_RESTRICT_NONE)
+        wattron(win, A_REVERSE);
+    mvwprintw(win, y, 18, "%s", value == ITU_T_E164_CONTEXT_RESTRICT_NONE ? "[aberta]" : " aberta ");
+    if(active && value == ITU_T_E164_CONTEXT_RESTRICT_NONE)
+        wattroff(win, A_REVERSE);
+    if(active && value == ITU_T_E164_CONTEXT_RESTRICT_COUNTRY)
+        wattron(win, A_REVERSE);
+    mvwprintw(win, y, 27, "%s", value == ITU_T_E164_CONTEXT_RESTRICT_COUNTRY ? "[DDI]" : " DDI ");
+    if(active && value == ITU_T_E164_CONTEXT_RESTRICT_COUNTRY)
+        wattroff(win, A_REVERSE);
+    if(active && value == ITU_T_E164_CONTEXT_RESTRICT_AREA)
+        wattron(win, A_REVERSE);
+    mvwprintw(win, y, 34, "%s", value == ITU_T_E164_CONTEXT_RESTRICT_AREA ? "[DDD]" : " DDD ");
+    if(active && value == ITU_T_E164_CONTEXT_RESTRICT_AREA)
         wattroff(win, A_REVERSE);
 }
 
@@ -199,7 +254,37 @@ static int field_cursor_x(const struct input_state *state)
     if(state->field == FIELD_RESTRICTION)
         len = strlen(restriction_label(state->restriction));
 
-    return 14 + len;
+    return 18 + len;
+}
+
+static void get_full_dialing_value(itu_t_e164_t *e164, char *buffer, size_t size)
+{
+    const char *prefix;
+
+    if(size == 0)
+        return;
+
+    buffer[0] = 0;
+    if(e164->pos == 0)
+        return;
+
+    if(e164->context.country_code != 0 && e164->cc.value == e164->context.country_code) {
+        prefix = itu_t_e164_cc_2_national_prefix(e164->cc.value);
+        if(prefix != NULL && prefix[0] != 0) {
+            snprintf(buffer, size, "%s%s", prefix, &e164->value[e164->cc.len]);
+            return;
+        }
+    }
+
+    if(e164->context.country_code != 0) {
+        prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
+        if(prefix != NULL && prefix[0] != 0) {
+            snprintf(buffer, size, "%s%s", prefix, e164->value);
+            return;
+        }
+    }
+
+    snprintf(buffer, size, "+%s", e164->value);
 }
 
 static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t *e164)
@@ -213,20 +298,26 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     mvwprintw(win, 0, 2, " Phone ");
     draw_field(win, 2, "DDI", field_value(state, FIELD_COUNTRY), state->field == FIELD_COUNTRY);
     draw_field(win, 3, "DDD", field_value(state, FIELD_AREA), state->field == FIELD_AREA);
-    draw_field(win, 4, "Restricao", restriction_label(state->restriction), state->field == FIELD_RESTRICTION);
+    draw_restriction_field(win, 4, state);
 
     bytes = itu_t_e164_get_context_value(e164, buffer, sizeof(buffer));
     draw_field(win, 6, "Numero", buffer, state->field == FIELD_PHONE);
 
+    itu_t_e164_get_value(e164, buffer, sizeof(buffer));
+    draw_field(win, 7, "Completo", e164->pos == 0 ? "" : buffer, 0);
+
+    get_full_dialing_value(e164, buffer, sizeof(buffer));
+    draw_field(win, 8, "Discagem", buffer, 0);
+
     country = known_country(e164);
     if(country != NULL)
-        mvwprintw(win, 7, 2, "Pais: %-18s", country);
+        mvwprintw(win, 9, 2, "Pais: %-18s", country);
     else
-        mvwprintw(win, 7, 2, "%-24s", "");
+        mvwprintw(win, 9, 2, "%-24s", "");
 
-    mvwprintw(win, 7, 30, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
-    mvwprintw(win, 8, 2, "TAB alterna campos. Enter conclui.");
-    wmove(win, state->field == FIELD_PHONE ? 6 : state->field + 2, state->field == FIELD_PHONE ? 14 + bytes : field_cursor_x(state));
+    mvwprintw(win, 9, 34, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
+    mvwprintw(win, 10, 2, "TAB alterna campos. Espaco/setas alteram a restricao. Enter conclui.");
+    wmove(win, state->field == FIELD_PHONE ? 6 : state->field + 2, state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
     wrefresh(win);
 }
 
@@ -265,9 +356,7 @@ static void set_restriction(struct input_state *state, int ch)
     if(ch < '0' || ch > '2')
         return;
 
-    state->restriction[0] = ch;
-    state->restriction[1] = 0;
-    state->restriction_len = 1;
+    set_restriction_value(state, ch - '0');
 }
 
 static void handle_context_key(struct input_state *state, int ch)
@@ -278,6 +367,14 @@ static void handle_context_key(struct input_state *state, int ch)
     }
 
     if(state->field == FIELD_RESTRICTION) {
+        if(ch == KEY_LEFT) {
+            cycle_restriction(state, -1);
+            return;
+        }
+        if(ch == KEY_RIGHT || ch == ' ') {
+            cycle_restriction(state, 1);
+            return;
+        }
         set_restriction(state, ch);
         return;
     }
@@ -335,7 +432,7 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
 }
 
 int main() {
-    int startx, starty, width = INPUT_WIDTH, height = 11;
+    int startx, starty, width = INPUT_WIDTH, height = 13;
     WINDOW *win;
 
     itu_t_e164_t e164;
