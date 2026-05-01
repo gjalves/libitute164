@@ -36,12 +36,12 @@ typedef struct {
 typedef struct {
     uint16_t country_code;
     uint32_t area_code;
-    uint8_t presentation;
+    uint8_t restriction;
 } itu_t_e164_context_t;
 
-#define ITU_T_E164_CONTEXT_PRESENT_COMPLETE 0
-#define ITU_T_E164_CONTEXT_PRESENT_COUNTRY 1
-#define ITU_T_E164_CONTEXT_PRESENT_AREA 2
+#define ITU_T_E164_CONTEXT_RESTRICT_NONE 0
+#define ITU_T_E164_CONTEXT_RESTRICT_COUNTRY 1
+#define ITU_T_E164_CONTEXT_RESTRICT_AREA 2
 
 typedef struct {
     int pos;

@@ -69,7 +69,7 @@ static void configure_context(itu_t_e164_t *e164)
 {
     char country[8];
     char area[8];
-    char mode[8];
+    char restriction[8];
     itu_t_e164_context_t context;
 
     clear();
@@ -82,11 +82,26 @@ static void configure_context(itu_t_e164_t *e164)
     if(context.country_code != 0) {
         read_context_field(5, "DDD", area, sizeof(area));
         context.area_code = parse_number(area);
-        read_context_field(6, "Exibir 0=completo 1=sem DDI 2=local", mode, sizeof(mode));
-        context.presentation = parse_number(mode);
+        read_context_field(6, "Restricao 0=aberta 1=DDI 2=DDD", restriction, sizeof(restriction));
+        context.restriction = parse_number(restriction);
+        if(context.restriction > ITU_T_E164_CONTEXT_RESTRICT_AREA)
+            context.restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE;
+        if(context.restriction == ITU_T_E164_CONTEXT_RESTRICT_AREA && context.area_code == 0)
+            context.restriction = ITU_T_E164_CONTEXT_RESTRICT_COUNTRY;
     }
     itu_t_e164_set_context(e164, &context);
     clear();
+}
+
+static int prefix_allowed(const itu_t_e164_t *e164, int ch)
+{
+    if(ch == '+')
+        return e164->context.restriction == ITU_T_E164_CONTEXT_RESTRICT_NONE;
+
+    if(ch == '(')
+        return e164->context.restriction < ITU_T_E164_CONTEXT_RESTRICT_AREA;
+
+    return 0;
 }
 
 void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
@@ -103,7 +118,11 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
 
     //while (pos < max_len - 1) {
     while (1) {
+        char previous_value[sizeof(e164->value)];
+        int appended_digit = 0;
+
         ch = wgetch(win);
+        snprintf(previous_value, sizeof(previous_value), "%s", e164->value);
 
         if (ch == '\n' || ch == '\r') {
             break; // Concluir com Enter
@@ -111,16 +130,21 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
             // Apagar o último caractere
             if(input_len > 0)
                 input[--input_len] = 0;
-        } else if ((ch == '+' || ch == '(') && input_len == 0) {
+        } else if ((ch == '+' || ch == '(') && input_len == 0 && prefix_allowed(e164, ch)) {
             input[input_len++] = ch;
             input[input_len] = 0;
         } else if (isdigit(ch)) {
             if(input_len < sizeof(input) - 1) {
                 input[input_len++] = ch;
                 input[input_len] = 0;
+                appended_digit = 1;
             }
         }
         itu_t_e164_set_value(e164, input);
+        if(appended_digit && strcmp(e164->value, previous_value) == 0 && input_len > 0) {
+            input[--input_len] = 0;
+            itu_t_e164_set_value(e164, input);
+        }
         draw_phone_state(win, y, x, e164, &bytes);
         wmove(win, y, x + bytes);
         wrefresh(win);

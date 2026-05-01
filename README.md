@@ -147,21 +147,20 @@ Default locality is application context, not numbering-plan data. Set it on an
 `itu_t_e164_t` instance to accept national or local input without `+`:
 
 ```c
-itu_t_e164_context_t context = {55, 19};
+itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA};
 
-context.presentation = ITU_T_E164_CONTEXT_PRESENT_AREA;
 itu_t_e164_set_context(&e164, &context);
 itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */
 itu_t_e164_set_value(&e164, "019912345678"); /* +55 (19) 91234-5678 */
 ```
 
 `itu_t_e164_get_value()` returns the complete international value.
-`itu_t_e164_get_context_value()` applies `context.presentation`:
-`ITU_T_E164_CONTEXT_PRESENT_COMPLETE` keeps the full value,
-`ITU_T_E164_CONTEXT_PRESENT_COUNTRY` hides a country code inferred from the
-context, and `ITU_T_E164_CONTEXT_PRESENT_AREA` also hides an area code inferred
-from the context. Explicit user input remains visible: `+` forces an
-international presentation and `(` forces an area presentation.
+`itu_t_e164_get_context_value()` applies `context.restriction`.
+`ITU_T_E164_CONTEXT_RESTRICT_NONE` keeps an open policy: context defaults are
+used for local input, but explicit `+` and `(` input remains visible.
+`ITU_T_E164_CONTEXT_RESTRICT_COUNTRY` accepts only the context country and hides
+that country in the context value. `ITU_T_E164_CONTEXT_RESTRICT_AREA` accepts
+only the context country and area, hiding both in the context value.
 
 The repository includes `data/e164-plan.txt` and a validator:
 

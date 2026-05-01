@@ -133,7 +133,7 @@ static void update_input_flags(itu_t_e164_t *e164, const char *value, int explic
     e164->input_area_explicit = input_has_explicit_area(e164, value, explicit_area);
 }
 
-static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size)
+static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size, int explicit_area)
 {
     const char *prefix;
     char area_code[16];
@@ -153,7 +153,7 @@ static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *val
     if(starts_with(value, prefix))
         return append_digits(digits, size, pos, value + strlen(prefix));
 
-    if(e164->context.area_code != 0) {
+    if(e164->context.area_code != 0 && !explicit_area) {
         snprintf(area_code, sizeof(area_code), "%lu", (unsigned long)e164->context.area_code);
         if(!starts_with(value, area_code))
             pos = append_digits(digits, size, pos, area_code);
@@ -325,6 +325,20 @@ static void itu_t_e164_update(itu_t_e164_t *e164)
     }
 }
 
+static int context_rejects_value(itu_t_e164_t *e164)
+{
+    if(e164->pos == 0 || e164->context.restriction == ITU_T_E164_CONTEXT_RESTRICT_NONE)
+        return 0;
+
+    if(e164->context.country_code != 0 && e164->cc.value != e164->context.country_code)
+        return 1;
+
+    if(e164->context.restriction < ITU_T_E164_CONTEXT_RESTRICT_AREA || e164->context.area_code == 0)
+        return 0;
+
+    return e164->number.ndc_len > 0 && e164->number.ndc != e164->context.area_code;
+}
+
 // Define a new value
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 {
@@ -366,7 +380,7 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     if(explicit_international)
         memcpy(digits, input, pos + 1);
     else
-        normalize_context_digits(e164, input, digits, sizeof(digits));
+        normalize_context_digits(e164, input, digits, sizeof(digits), explicit_area);
 
     itu_t_e164_init(e164);
     e164->context = context;
@@ -375,6 +389,8 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     memcpy(e164->value, digits, strlen(digits) + 1);
     e164->pos = strlen(digits);
     itu_t_e164_update(e164);
+    if(context_rejects_value(e164))
+        itu_t_e164_truncate(e164, 0);
 }
 
 int print_mask(char *str, ssize_t size, const char *mask, const char *number)
@@ -440,7 +456,7 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     char full[BUFSIZ];
     const char *display = full;
     char prefix[24];
-    uint8_t presentation;
+    uint8_t restriction;
 
     if(size <= 0) return 0;
     if(e164->pos == 0) {
@@ -449,11 +465,10 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     }
 
     itu_t_e164_get_value(e164, full, sizeof(full));
-    presentation = e164->context.presentation;
+    restriction = e164->context.restriction;
 
-    if(presentation >= ITU_T_E164_CONTEXT_PRESENT_COUNTRY &&
-       e164->context.country_code != 0 &&
-       !e164->input_country_explicit) {
+    if(e164->context.country_code != 0 &&
+       (restriction >= ITU_T_E164_CONTEXT_RESTRICT_COUNTRY || !e164->input_country_explicit)) {
         snprintf(prefix, sizeof(prefix), "+%lu", (unsigned long)e164->context.country_code);
         if(starts_with(display, prefix)) {
             display += strlen(prefix);
@@ -462,9 +477,8 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
         }
     }
 
-    if(presentation >= ITU_T_E164_CONTEXT_PRESENT_AREA &&
-       e164->context.area_code != 0 &&
-       !e164->input_area_explicit) {
+    if(e164->context.area_code != 0 &&
+       (restriction >= ITU_T_E164_CONTEXT_RESTRICT_AREA || !e164->input_area_explicit)) {
         snprintf(prefix, sizeof(prefix), "(%lu)", (unsigned long)e164->context.area_code);
         if(starts_with(display, prefix)) {
             display += strlen(prefix);
