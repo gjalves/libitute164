@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <regex.h>
 #include <err.h>
 #include "libitute164.h"
@@ -9,7 +10,43 @@
 // Initialize structure
 void itu_t_e164_init(itu_t_e164_t *e164)
 {
-    bzero(e164, sizeof(*e164));
+    memset(e164, 0, sizeof(*e164));
+}
+
+static ssize_t appendf(char *buffer, ssize_t size, ssize_t pos, const char *fmt, ...)
+{
+    int written;
+    va_list ap;
+
+    if(size <= 0) return pos;
+    if(pos >= size) return pos;
+
+    va_start(ap, fmt);
+    written = vsnprintf(buffer + pos, size - pos, fmt, ap);
+    va_end(ap);
+
+    if(written < 0) return pos;
+    return pos + written;
+}
+
+static void itu_t_e164_refresh_raw_phone(itu_t_e164_t *e164)
+{
+    int i;
+
+    e164->raw_phone = 0;
+    for(i = 0; i < e164->pos; i++)
+        e164->raw_phone = e164->raw_phone * 10 + (e164->value[i] - '0');
+}
+
+static void itu_t_e164_truncate(itu_t_e164_t *e164, int pos)
+{
+    if(pos < 0) pos = 0;
+    if(pos > (int)sizeof(e164->value) - 1)
+        pos = sizeof(e164->value) - 1;
+
+    e164->pos = pos;
+    e164->value[e164->pos] = 0;
+    itu_t_e164_refresh_raw_phone(e164);
 }
 
 static int itu_t_e164_cc_subscriber_check(int country_code, const char *ndc, const char *sn, const char **mask)
@@ -51,18 +88,31 @@ static int itu_t_e164_cc_subscriber_check(int country_code, const char *ndc, con
 // Update e164 helper information for numbers
 static void itu_t_e164_update_number(itu_t_e164_t *e164)
 {
+    char area_code[16];
+    int area_digits;
+    const char *sn;
+
     // This function must be never called for other data.
     // Try to protect from invalid calls
     if(e164->cc.type != ITU_T_NUMBER) return;
 
     // Current number of digits discounting country code digits
-    int area_digits = e164->pos - e164->cc.len;
+    area_digits = e164->pos - e164->cc.len;
 
     // Resolve NDC for a maximum of four elements
     // Make sure all the digits are reacheable through the hierarch
     e164->number.ndc = 0;
     e164->number.ndc_len = 0;
-    if(itu_t_e164_area_2_type(e164->cc.value, e164->number.ndc) == ITU_T_AREA_INCOMPLETE) {
+    e164->number.type = itu_t_e164_area_2_type(e164->cc.value, e164->number.ndc);
+    if(e164->number.type == ITU_T_AREA_UNKNOWN) {
+        e164->number.type = ITU_T_AREA_NUMBER;
+        e164->number.sn_len = area_digits;
+        e164->number.sn = atol(&e164->value[e164->cc.len]);
+        e164->number.mask = NULL;
+        return;
+    }
+
+    if((area_digits > 0) && (e164->number.type == ITU_T_AREA_INCOMPLETE)) {
         e164->number.ndc = e164->value[e164->cc.len] - '0';
         e164->number.ndc_len++;
         if((area_digits > 1) && (itu_t_e164_area_2_type(e164->cc.value, e164->number.ndc) == ITU_T_AREA_INCOMPLETE)) {
@@ -91,22 +141,21 @@ static void itu_t_e164_update_number(itu_t_e164_t *e164)
                 e164->number.type = ITU_T_AREA_INCOMPLETE;
         }
         e164->number.sn_len = 0;
-        e164->pos = e164->cc.len + e164->number.ndc_len;
+        itu_t_e164_truncate(e164, e164->cc.len + e164->number.ndc_len);
     } else {
         e164->number.sn_len = e164->pos - e164->cc.len - e164->number.ndc_len;
         e164->number.sn = atol(&e164->value[e164->cc.len + e164->number.ndc_len]);
-        e164->pos = e164->cc.len + e164->number.ndc_len + e164->number.sn_len;
+        itu_t_e164_truncate(e164, e164->cc.len + e164->number.ndc_len + e164->number.sn_len);
     }
 
-    // Truncate buffer to the expected number of digits
-    e164->value[e164->pos] = 0;
-
-    char area_code[8];
     if(e164->number.ndc)
         snprintf(area_code, sizeof(area_code), "%u", e164->number.ndc);
 
-    if(itu_t_e164_cc_subscriber_check(e164->cc.value, e164->number.ndc?area_code:NULL, &e164->value[e164->cc.len + e164->number.ndc_len], &e164->number.mask) == 0) {
-        itu_t_e164_del_digit(e164);
+    sn = &e164->value[e164->cc.len + e164->number.ndc_len];
+    while(e164->number.sn_len > 0 && itu_t_e164_cc_subscriber_check(e164->cc.value, e164->number.ndc?area_code:NULL, sn, &e164->number.mask) == 0) {
+        e164->number.sn_len--;
+        itu_t_e164_truncate(e164, e164->pos - 1);
+        sn = &e164->value[e164->cc.len + e164->number.ndc_len];
     }
 }
 
@@ -135,8 +184,7 @@ static void itu_t_e164_update_cc(itu_t_e164_t *e164)
 
     // Remove invalid trailling data
     if((e164->cc.type == ITU_T_UNKNOWN) || (e164->cc.type == ITU_T_SPARE)) {
-        e164->pos = e164->cc.len;
-        e164->value[e164->pos] = 0;
+        itu_t_e164_truncate(e164, e164->cc.len);
     }
 }
 
@@ -157,13 +205,29 @@ static void itu_t_e164_update(itu_t_e164_t *e164)
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 {
     const char *p;
+    char digits[sizeof(e164->value)];
+    size_t pos = 0;
+
+    if(value == NULL) {
+        itu_t_e164_init(e164);
+        return;
+    }
+
     if(value[0] == '+')
         p = &value[1];
     else
         p = value;
 
-    strcpy(e164->value, p);
-    e164->pos = strlen(e164->value);
+    while(*p && pos < sizeof(digits) - 1) {
+        if(isdigit((unsigned char)*p))
+            digits[pos++] = *p;
+        p++;
+    }
+    digits[pos] = 0;
+
+    itu_t_e164_init(e164);
+    memcpy(e164->value, digits, pos + 1);
+    e164->pos = pos;
     itu_t_e164_update(e164);
 }
 
@@ -173,7 +237,9 @@ int print_mask(char *str, ssize_t size, const char *mask, const char *number)
     int number_pos = 0;
     int mask_pos = 0;
 
-    while(mask[mask_pos] && number[number_pos]) {
+    if(size <= 0) return 0;
+
+    while(mask[mask_pos] && number[number_pos] && str_pos < size - 1) {
         if(mask[mask_pos] == '#') {
             str[str_pos] = number[number_pos++];
         } else {
@@ -181,7 +247,6 @@ int print_mask(char *str, ssize_t size, const char *mask, const char *number)
         }
         mask_pos++;
         str_pos++;
-        if(str_pos > size) break;
     }
     str[str_pos] = 0;
     return str_pos;
@@ -189,30 +254,36 @@ int print_mask(char *str, ssize_t size, const char *mask, const char *number)
 
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
 {
-    int pos;
-    pos = snprintf(buffer, size, "+%.*s", e164->cc.len, &e164->value[0]);
+    ssize_t pos;
+
+    if(size <= 0) return 0;
+
+    pos = appendf(buffer, size, 0, "+%.*s", e164->cc.len, &e164->value[0]);
 
     if((e164->cc.type != ITU_T_INCOMPLETE) && (e164->cc.type != ITU_T_UNKNOWN)) {
         // Only shows something if there is area code in this country code
         if(!((e164->number.type == ITU_T_AREA_NUMBER) && (e164->number.ndc_len == 0)))
-            pos += snprintf(buffer + pos, size - pos, " (");
+            pos = appendf(buffer, size, pos, " (");
 
         //if((e164->number.type != ITU_T_AREA_UNKNOWN) && (e164->number.ndc_len > 0)) {
         if(e164->number.type != ITU_T_AREA_UNKNOWN) {
             // Only shows something if there is area code in this country code
             if(!((e164->number.type == ITU_T_AREA_NUMBER) && (e164->number.ndc_len == 0)))
-                pos += snprintf(buffer + pos, size - pos, "%u", e164->number.ndc);
+                pos = appendf(buffer, size, pos, "%u", e164->number.ndc);
 
             if(e164->number.type == ITU_T_AREA_NUMBER) {
                 // Only shows something if there is area code in this country code
                 if(!((e164->number.type == ITU_T_AREA_NUMBER) && (e164->number.ndc_len == 0)))
-                    pos += snprintf(buffer + pos, size - pos, ")");
-                pos += snprintf(buffer + pos, size - pos, " ");
+                    pos = appendf(buffer, size, pos, ")");
+                pos = appendf(buffer, size, pos, " ");
 
                 if(e164->number.sn_len > 0) {
                     char number[16];
-                    sprintf(number, "%lu", e164->number.sn);
-                    pos += print_mask(buffer + pos, size - pos, e164->number.mask, number);
+                    snprintf(number, sizeof(number), "%.*s", e164->number.sn_len, &e164->value[e164->cc.len + e164->number.ndc_len]);
+                    if(e164->number.mask == NULL)
+                        pos = appendf(buffer, size, pos, "%s", number);
+                    else if(pos < size)
+                        pos += print_mask(buffer + pos, size - pos, e164->number.mask, number);
                 }
             }
         }

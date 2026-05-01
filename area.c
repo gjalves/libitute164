@@ -1,7 +1,12 @@
-#include "libitute164.h"
+#include "libitute164_private.h"
 
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code)
 {
+    enum itu_t_area_type_enum plan_type;
+
+    if(itu_t_e164_plan_area_lookup(country_code, area_code, &plan_type))
+        return plan_type;
+
     switch(country_code) {
         case 1: // NANPA
             switch(area_code) {

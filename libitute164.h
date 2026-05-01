@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <stdint.h>
+#include <stdio.h>
 
 enum itu_t_area_type_enum {
     ITU_T_AREA_UNKNOWN,
@@ -101,9 +102,15 @@ struct cc_regex {
     const char *mask_sn;
 };
 
-enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code) __attribute__((const));
-enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code) __attribute__((const));
-struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code) __attribute__((const));
+enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
+const char *itu_t_e164_cc_2_country(int country_code);
+enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
+struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
+int itu_t_e164_load_plan_file(const char *path);
+int itu_t_e164_load_plan_fp(FILE *fp);
+int itu_t_e164_load_default_plan(void);
+const char *itu_t_e164_plan_error(void);
+void itu_t_e164_reset_plan(void);
 void itu_t_e164_init(itu_t_e164_t *e164);
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);

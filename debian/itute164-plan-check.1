@@ -1,0 +1,14 @@
+.TH ITUTE164-PLAN-CHECK 1 "May 2026" "libitute164" "User Commands"
+.SH NAME
+itute164-plan-check \- validate a libitute164 E.164 numbering plan
+.SH SYNOPSIS
+.B itute164-plan-check
+.I e164-plan.txt
+.SH DESCRIPTION
+.B itute164-plan-check
+loads and validates a libitute164 external numbering-plan file.
+.PP
+The command exits with status 0 when the file is valid. It prints a diagnostic
+and exits non-zero when the file cannot be loaded or contains invalid rules.
+.SH SEE ALSO
+.BR libitute164 (7)

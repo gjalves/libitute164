@@ -38,7 +38,7 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
     bytes = itu_t_e164_get_value(e164, buffer, sizeof(buffer));
 
     // Exibe máscara inicial
-    mvwprintw(win, y, x, buffer);
+    mvwprintw(win, y, x, "%s", buffer);
     wmove(win, y, x + bytes);
     wrefresh(win);
 
@@ -57,7 +57,7 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
             itu_t_e164_add_digit(e164, ch);
             bytes = itu_t_e164_get_value(e164, buffer, sizeof(buffer));
         }
-        mvwprintw(win, y, x, buffer);
+        mvwprintw(win, y, x, "%s", buffer);
         wmove(win, y, x + bytes);
         wrefresh(win);
     }
@@ -94,4 +94,3 @@ int main() {
 
     return 0;
 }
-

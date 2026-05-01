@@ -1,6 +1,8 @@
-libitute164 for Debian
----------------------
+libitute164 for Ubuntu
+----------------------
 
-<possible notes regarding this package - if none, delete this file>
+The runtime package installs the default E.164 numbering plan in
+/usr/share/libitute164/e164-plan.txt.
 
- -- unknown <gustavo-alves@unknown>  Wed, 04 Dec 2024 17:38:06 -0300
+Applications may call itu_t_e164_load_default_plan() to load the default plan,
+or set LIBITUTE164_PLAN to point at an alternate numbering-plan file.

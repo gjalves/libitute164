@@ -104,6 +104,52 @@ Retrieves the value of a number formatted as a string.
   int itu_t_e164_del_digit(itu_t_e164_t *e164);
   ```
 
+### External Numbering Plans
+The library can load numbering plan data from a text file at runtime. Loaded
+rules override the built-in tables; missing rules continue to use the built-in
+fallbacks. The plan is kept in memory after loading; the library does not
+watch or re-read the file automatically. Call one of the load functions again
+to reload it, or `itu_t_e164_reset_plan()` to discard the loaded plan. Reloads
+are transactional: if parsing fails, the previously active plan remains in use.
+
+```c
+int itu_t_e164_load_plan_file(const char *path);
+int itu_t_e164_load_plan_fp(FILE *fp);
+int itu_t_e164_load_default_plan(void);
+const char *itu_t_e164_plan_error(void);
+void itu_t_e164_reset_plan(void);
+const char *itu_t_e164_cc_2_country(int country_code);
+```
+
+Plan files use whitespace-separated directives. Masks containing spaces must be
+quoted.
+
+```text
+cc 55 number
+country 55 pt_BR
+area 55 19 number
+subscriber 55 * ^9[0-9]{0,8}$ #####-####
+subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
+```
+
+Country tags use the `ll_CC` form, such as `pt_BR`. The lookup returns the
+loaded string for the country code, or `NULL` when the loaded plan does not
+define one.
+
+The repository includes `data/e164-plan.txt` and a validator:
+
+```bash
+tools/plan-check data/e164-plan.txt
+make check-plan
+make check
+make sanitize
+make ci
+```
+
+`itu_t_e164_load_default_plan()` first checks the `LIBITUTE164_PLAN`
+environment variable, then `/etc/libitute164/e164-plan.txt`, then
+`/usr/share/libitute164/e164-plan.txt`.
+
 ### Type Determination
 ```c
 enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);

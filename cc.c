@@ -1,10 +1,15 @@
 #include <ncurses.h>
 #include <ctype.h>
 
-#include "libitute164.h"
+#include "libitute164_private.h"
 
 enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code)
 {
+    enum itu_t_e164_type_enum plan_type;
+
+    if(itu_t_e164_plan_cc_lookup(country_code, &plan_type))
+        return plan_type;
+
     switch(country_code) {
         case 0:   return ITU_T_RESERVED;
         case 1:   return ITU_T_NUMBER; // NANP
@@ -352,6 +357,7 @@ enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code)
 
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code)
 {
+    struct cc_regex *plan_regex;
     static struct cc_regex *codes[1000];
     // NANPA
     static struct cc_regex codes_1[] = {
@@ -381,5 +387,9 @@ struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code)
     codes[54] = codes_54;
     codes[55] = codes_55;
     codes[598] = codes_598;
+    plan_regex = itu_t_e164_plan_subscriber_regex(country_code);
+    if(plan_regex != NULL)
+        return plan_regex;
+
     return codes[country_code];
 }

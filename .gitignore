@@ -1,2 +1,14 @@
 /*.o
 /*.a
+/debian/.debhelper/
+/debian/debhelper-build-stamp
+/debian/files
+/debian/*.substvars
+/debian/tmp/
+/debian/libitute164/
+/debian/libitute164-dev/
+/*.build
+/*.buildinfo
+/*.changes
+/*.deb
+/*.ddeb

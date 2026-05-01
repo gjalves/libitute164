@@ -1,0 +1,49 @@
+# libitute164 external numbering plan
+#
+# Format:
+#   cc <country-code> <unknown|incomplete|reserved|spare|number|geographic|global|groups|trials>
+#   country <country-code> <ll_CC>
+#   area <country-code> <area-code> <unknown|incomplete|number>
+#   subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask>
+
+cc 1 number
+cc 31 number
+cc 54 number
+cc 55 number
+cc 598 number
+cc 800 global
+cc 991 trials
+
+country 1 en_US
+country 31 nl_NL
+country 54 es_AR
+country 55 pt_BR
+country 598 es_UY
+
+area 1 0 incomplete
+area 1 2 incomplete
+area 1 20 incomplete
+area 1 201 number
+area 1 469 number
+
+area 54 0 incomplete
+area 54 2 incomplete
+area 54 29 incomplete
+area 54 296 incomplete
+area 54 2966 number
+
+area 55 0 incomplete
+area 55 1 incomplete
+area 55 11 number
+area 55 19 number
+
+area 598 0 number
+
+subscriber 1 * ^[0-9]{0,7}$ ###-####
+subscriber 54 ^[0-9]{4}$ ^[0-9]{0,6}$ ######
+subscriber 54 ^[0-9]{3}$ ^[0-9]{0,7}$ "### ####"
+subscriber 54 ^[0-9]{2}$ ^[0-9]{0,8}$ "#### ####"
+subscriber 54 * ^$ "#### ####"
+subscriber 55 * ^9[0-9]{0,8}$ #####-####
+subscriber 55 * ^[0-9]{0,8}$ ####-####
+subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
