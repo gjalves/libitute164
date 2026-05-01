@@ -29,91 +29,13 @@ static const char *known_country(itu_t_e164_t *e164)
     return itu_t_e164_cc_2_country(e164->cc.value);
 }
 
-static int starts_with(const char *value, const char *prefix)
-{
-    size_t len;
-
-    if(prefix == NULL || prefix[0] == 0)
-        return 0;
-
-    len = strlen(prefix);
-    return strncmp(value, prefix, len) == 0;
-}
-
-static int input_has_explicit_country(itu_t_e164_t *e164, const char *input)
-{
-    char country[8];
-    const char *prefix;
-
-    if(e164->context.country_code == 0)
-        return 1;
-
-    prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
-    if(starts_with(input, prefix))
-        return 1;
-
-    snprintf(country, sizeof(country), "%lu", (unsigned long)e164->context.country_code);
-    return starts_with(input, country);
-}
-
-static int input_has_explicit_area(itu_t_e164_t *e164, const char *input)
-{
-    char area[16];
-    const char *prefix;
-
-    if(e164->context.area_code == 0)
-        return 1;
-
-    snprintf(area, sizeof(area), "%lu", (unsigned long)e164->context.area_code);
-    if(starts_with(input, area))
-        return 1;
-
-    prefix = itu_t_e164_cc_2_national_prefix(e164->context.country_code);
-    if(starts_with(input, prefix))
-        return starts_with(input + strlen(prefix), area);
-
-    return 0;
-}
-
-static const char *display_phone_value(itu_t_e164_t *e164, const char *input, char *buffer, size_t size)
-{
-    const char *display = buffer;
-    char prefix[24];
-
-    itu_t_e164_get_value(e164, buffer, size);
-    if(input[0] == 0 && e164->context.country_code != 0)
-        return "";
-
-    if(e164->context.country_code != 0 && !input_has_explicit_country(e164, input)) {
-        snprintf(prefix, sizeof(prefix), "+%lu", (unsigned long)e164->context.country_code);
-        if(starts_with(display, prefix)) {
-            display += strlen(prefix);
-            if(display[0] == ' ')
-                display++;
-        }
-    }
-
-    if(e164->context.area_code != 0 && !input_has_explicit_area(e164, input)) {
-        snprintf(prefix, sizeof(prefix), "(%lu)", (unsigned long)e164->context.area_code);
-        if(starts_with(display, prefix)) {
-            display += strlen(prefix);
-            if(display[0] == ' ')
-                display++;
-        }
-    }
-
-    return display;
-}
-
-static void draw_phone_state(WINDOW *win, int y, int x, itu_t_e164_t *e164, const char *input, int *bytes)
+static void draw_phone_state(WINDOW *win, int y, int x, itu_t_e164_t *e164, int *bytes)
 {
     const char *country;
-    const char *display;
     char buffer[BUFSIZ];
 
-    display = display_phone_value(e164, input, buffer, sizeof(buffer));
-    *bytes = strlen(display);
-    mvwprintw(win, y, x, "%-*s", INPUT_WIDTH - x - 2, display);
+    *bytes = itu_t_e164_get_context_value(e164, buffer, sizeof(buffer));
+    mvwprintw(win, y, x, "%-*s", INPUT_WIDTH - x - 2, buffer);
 
     country = known_country(e164);
     if(country != NULL)
@@ -172,7 +94,7 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
 
     input[0] = 0;
 
-    draw_phone_state(win, y, x, e164, input, &bytes);
+    draw_phone_state(win, y, x, e164, &bytes);
     wmove(win, y, x + bytes);
     wrefresh(win);
 
@@ -193,7 +115,7 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
             }
         }
         itu_t_e164_set_value(e164, input);
-        draw_phone_state(win, y, x, e164, input, &bytes);
+        draw_phone_state(win, y, x, e164, &bytes);
         wmove(win, y, x + bytes);
         wrefresh(win);
     }

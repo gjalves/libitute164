@@ -122,6 +122,7 @@ const char *itu_t_e164_cc_2_country(int country_code);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context);
+ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 ```
 
 Plan files use whitespace-separated directives. Masks containing spaces must be
@@ -153,7 +154,10 @@ itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */
 itu_t_e164_set_value(&e164, "019912345678"); /* +55 (19) 91234-5678 */
 ```
 
-Explicit international values starting with `+` are not changed by the context.
+`itu_t_e164_get_value()` returns the complete international value.
+`itu_t_e164_get_context_value()` hides country or area codes inferred from the
+context, while keeping explicit user input visible. Explicit international
+values starting with `+` are not changed by the context.
 
 The repository includes `data/e164-plan.txt` and a validator:
 

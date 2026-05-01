@@ -17,10 +17,14 @@ void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *cont
 {
     if(context == NULL) {
         memset(&e164->context, 0, sizeof(e164->context));
+        e164->context_country_implicit = 0;
+        e164->context_area_implicit = 0;
         return;
     }
 
     e164->context = *context;
+    e164->context_country_implicit = 0;
+    e164->context_area_implicit = 0;
 }
 
 static ssize_t appendf(char *buffer, ssize_t size, ssize_t pos, const char *fmt, ...)
@@ -74,6 +78,56 @@ static size_t append_number(char *digits, size_t size, size_t pos, unsigned long
 
     snprintf(buffer, sizeof(buffer), "%lu", value);
     return append_digits(digits, size, pos, buffer);
+}
+
+static int input_has_explicit_country(const itu_t_e164_t *e164, const char *value)
+{
+    char country[8];
+    const char *prefix;
+
+    if(e164->context.country_code == 0)
+        return 1;
+
+    prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
+    if(starts_with(value, prefix))
+        return 1;
+
+    snprintf(country, sizeof(country), "%lu", (unsigned long)e164->context.country_code);
+    return starts_with(value, country);
+}
+
+static int input_has_explicit_area(const itu_t_e164_t *e164, const char *value)
+{
+    char area[16];
+    const char *prefix;
+
+    if(e164->context.area_code == 0)
+        return 1;
+
+    snprintf(area, sizeof(area), "%lu", (unsigned long)e164->context.area_code);
+    if(starts_with(value, area))
+        return 1;
+
+    prefix = itu_t_e164_cc_2_national_prefix(e164->context.country_code);
+    if(starts_with(value, prefix))
+        return starts_with(value + strlen(prefix), area);
+
+    return 0;
+}
+
+static void update_context_flags(itu_t_e164_t *e164, const char *value, int explicit_international)
+{
+    e164->context_country_implicit = 0;
+    e164->context_area_implicit = 0;
+
+    if(explicit_international || value[0] == 0 || e164->context.country_code == 0)
+        return;
+
+    if(!input_has_explicit_country(e164, value)) {
+        e164->context_country_implicit = 1;
+        if(e164->context.area_code != 0 && !input_has_explicit_area(e164, value))
+            e164->context_area_implicit = 1;
+    }
 }
 
 static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size)
@@ -273,6 +327,8 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 {
     const char *p;
     itu_t_e164_context_t context;
+    uint8_t context_country_implicit;
+    uint8_t context_area_implicit;
     char input[sizeof(e164->value)];
     char digits[sizeof(e164->value)];
     size_t pos = 0;
@@ -297,6 +353,9 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     input[pos] = 0;
 
     context = e164->context;
+    update_context_flags(e164, input, value[0] == '+');
+    context_country_implicit = e164->context_country_implicit;
+    context_area_implicit = e164->context_area_implicit;
     if(value[0] == '+')
         memcpy(digits, input, pos + 1);
     else
@@ -304,6 +363,8 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 
     itu_t_e164_init(e164);
     e164->context = context;
+    e164->context_country_implicit = context_country_implicit;
+    e164->context_area_implicit = context_area_implicit;
     memcpy(e164->value, digits, strlen(digits) + 1);
     e164->pos = strlen(digits);
     itu_t_e164_update(e164);
@@ -365,6 +426,41 @@ ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
         }
     }
     return pos;
+}
+
+ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
+{
+    char full[BUFSIZ];
+    const char *display = full;
+    char prefix[24];
+
+    if(size <= 0) return 0;
+    if(e164->pos == 0) {
+        buffer[0] = 0;
+        return 0;
+    }
+
+    itu_t_e164_get_value(e164, full, sizeof(full));
+
+    if(e164->context_country_implicit) {
+        snprintf(prefix, sizeof(prefix), "+%lu", (unsigned long)e164->context.country_code);
+        if(starts_with(display, prefix)) {
+            display += strlen(prefix);
+            if(display[0] == ' ')
+                display++;
+        }
+    }
+
+    if(e164->context_area_implicit) {
+        snprintf(prefix, sizeof(prefix), "(%lu)", (unsigned long)e164->context.area_code);
+        if(starts_with(display, prefix)) {
+            display += strlen(prefix);
+            if(display[0] == ' ')
+                display++;
+        }
+    }
+
+    return appendf(buffer, size, 0, "%s", display);
 }
 
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit)

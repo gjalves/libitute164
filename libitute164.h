@@ -46,6 +46,8 @@ typedef struct {
     enum itu_t_e123_type_enum e123_type;
     itu_t_e164_cc_t cc;
     itu_t_e164_context_t context;
+    uint8_t context_country_implicit;
+    uint8_t context_area_implicit;
 
     union {
         // ITU_T_NUMBER,
@@ -123,5 +125,6 @@ void itu_t_e164_init(itu_t_e164_t *e164);
 void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context);
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
+ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
 int itu_t_e164_del_digit(itu_t_e164_t *e164);
