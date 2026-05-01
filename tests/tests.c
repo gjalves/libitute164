@@ -309,6 +309,8 @@ static void e164_test_load_plan_file(void **state)
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
     assert_string_equal("pt_BR", itu_t_e164_cc_2_country(55));
+    assert_string_equal("0", itu_t_e164_cc_2_national_prefix(55));
+    assert_string_equal("00", itu_t_e164_cc_2_international_prefix(55));
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+55");
@@ -319,6 +321,45 @@ static void e164_test_load_plan_file(void **state)
     itu_t_e164_set_value(&e164, "+551912345678");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+55 (19) 1234-5678", buffer);
+    itu_t_e164_reset_plan();
+}
+
+static void e164_test_context_local_and_national_input(void **state)
+{
+    (void) state;
+    itu_t_e164_t e164;
+    itu_t_e164_context_t context = {55, 19};
+    char buffer[BUFSIZ];
+
+    assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &context);
+    itu_t_e164_set_value(&e164, "912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 91234-5678", buffer);
+    assert_string_equal("5519912345678", e164.value);
+
+    itu_t_e164_set_value(&e164, "19912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 91234-5678", buffer);
+    assert_string_equal("5519912345678", e164.value);
+
+    itu_t_e164_set_value(&e164, "019912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 91234-5678", buffer);
+    assert_string_equal("5519912345678", e164.value);
+
+    itu_t_e164_set_value(&e164, "00551912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 1234-5678", buffer);
+    assert_string_equal("551912345678", e164.value);
+
+    itu_t_e164_set_value(&e164, "+551912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 1234-5678", buffer);
+    assert_string_equal("551912345678", e164.value);
+
     itu_t_e164_reset_plan();
 }
 
@@ -455,6 +496,7 @@ int main(void) {
         cmocka_unit_test(e164_test_country_without_mask),
         cmocka_unit_test(e164_test_set_null_value),
         cmocka_unit_test(e164_test_load_plan_file),
+        cmocka_unit_test(e164_test_context_local_and_national_input),
         cmocka_unit_test(e164_test_load_plan_override),
         cmocka_unit_test(e164_test_load_plan_invalid_keeps_active_plan),
         cmocka_unit_test(e164_test_load_default_plan_from_env),

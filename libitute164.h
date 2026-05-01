@@ -34,12 +34,18 @@ typedef struct {
 } itu_t_e164_cc_t;
 
 typedef struct {
+    uint16_t country_code;
+    uint32_t area_code;
+} itu_t_e164_context_t;
+
+typedef struct {
     int pos;
     char value[16];
     uint64_t raw_phone;
     uint64_t raw_extension;
     enum itu_t_e123_type_enum e123_type;
     itu_t_e164_cc_t cc;
+    itu_t_e164_context_t context;
 
     union {
         // ITU_T_NUMBER,
@@ -104,6 +110,8 @@ struct cc_regex {
 
 enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
 const char *itu_t_e164_cc_2_country(int country_code);
+const char *itu_t_e164_cc_2_national_prefix(int country_code);
+const char *itu_t_e164_cc_2_international_prefix(int country_code);
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 int itu_t_e164_load_plan_file(const char *path);
@@ -112,6 +120,7 @@ int itu_t_e164_load_default_plan(void);
 const char *itu_t_e164_plan_error(void);
 void itu_t_e164_reset_plan(void);
 void itu_t_e164_init(itu_t_e164_t *e164);
+void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context);
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);

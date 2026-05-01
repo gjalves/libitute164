@@ -13,6 +13,16 @@ void itu_t_e164_init(itu_t_e164_t *e164)
     memset(e164, 0, sizeof(*e164));
 }
 
+void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context)
+{
+    if(context == NULL) {
+        memset(&e164->context, 0, sizeof(e164->context));
+        return;
+    }
+
+    e164->context = *context;
+}
+
 static ssize_t appendf(char *buffer, ssize_t size, ssize_t pos, const char *fmt, ...)
 {
     int written;
@@ -36,6 +46,63 @@ static void itu_t_e164_refresh_raw_phone(itu_t_e164_t *e164)
     e164->raw_phone = 0;
     for(i = 0; i < e164->pos; i++)
         e164->raw_phone = e164->raw_phone * 10 + (e164->value[i] - '0');
+}
+
+static int starts_with(const char *value, const char *prefix)
+{
+    size_t len;
+
+    if(prefix == NULL || prefix[0] == 0)
+        return 0;
+
+    len = strlen(prefix);
+    return strncmp(value, prefix, len) == 0;
+}
+
+static size_t append_digits(char *digits, size_t size, size_t pos, const char *value)
+{
+    while(*value != 0 && pos < size - 1)
+        digits[pos++] = *value++;
+
+    digits[pos] = 0;
+    return pos;
+}
+
+static size_t append_number(char *digits, size_t size, size_t pos, unsigned long value)
+{
+    char buffer[16];
+
+    snprintf(buffer, sizeof(buffer), "%lu", value);
+    return append_digits(digits, size, pos, buffer);
+}
+
+static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size)
+{
+    const char *prefix;
+    char area_code[16];
+    size_t pos = 0;
+
+    digits[0] = 0;
+    if(e164->context.country_code == 0)
+        return append_digits(digits, size, pos, value);
+
+    prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
+    if(starts_with(value, prefix))
+        return append_digits(digits, size, pos, value + strlen(prefix));
+
+    pos = append_number(digits, size, pos, e164->context.country_code);
+
+    prefix = itu_t_e164_cc_2_national_prefix(e164->context.country_code);
+    if(starts_with(value, prefix))
+        return append_digits(digits, size, pos, value + strlen(prefix));
+
+    if(e164->context.area_code != 0) {
+        snprintf(area_code, sizeof(area_code), "%lu", (unsigned long)e164->context.area_code);
+        if(!starts_with(value, area_code))
+            pos = append_digits(digits, size, pos, area_code);
+    }
+
+    return append_digits(digits, size, pos, value);
 }
 
 static void itu_t_e164_truncate(itu_t_e164_t *e164, int pos)
@@ -205,11 +272,15 @@ static void itu_t_e164_update(itu_t_e164_t *e164)
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 {
     const char *p;
+    itu_t_e164_context_t context;
+    char input[sizeof(e164->value)];
     char digits[sizeof(e164->value)];
     size_t pos = 0;
 
     if(value == NULL) {
+        context = e164->context;
         itu_t_e164_init(e164);
+        e164->context = context;
         return;
     }
 
@@ -220,14 +291,21 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 
     while(*p && pos < sizeof(digits) - 1) {
         if(isdigit((unsigned char)*p))
-            digits[pos++] = *p;
+            input[pos++] = *p;
         p++;
     }
-    digits[pos] = 0;
+    input[pos] = 0;
+
+    context = e164->context;
+    if(value[0] == '+')
+        memcpy(digits, input, pos + 1);
+    else
+        normalize_context_digits(e164, input, digits, sizeof(digits));
 
     itu_t_e164_init(e164);
-    memcpy(e164->value, digits, pos + 1);
-    e164->pos = pos;
+    e164->context = context;
+    memcpy(e164->value, digits, strlen(digits) + 1);
+    e164->pos = strlen(digits);
     itu_t_e164_update(e164);
 }
 

@@ -3,6 +3,8 @@
 # Format:
 #   cc <country-code> <unknown|incomplete|reserved|spare|number|geographic|global|groups|trials>
 #   country <country-code> <ll_CC>
+#   national-prefix <country-code> <digits>
+#   international-prefix <country-code> <digits>
 #   area <country-code> <area-code> <unknown|incomplete|number>
 #   subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask>
 
@@ -19,6 +21,18 @@ country 31 nl_NL
 country 54 es_AR
 country 55 pt_BR
 country 598 es_UY
+
+national-prefix 1 1
+national-prefix 31 0
+national-prefix 54 0
+national-prefix 55 0
+national-prefix 598 0
+
+international-prefix 1 011
+international-prefix 31 00
+international-prefix 54 00
+international-prefix 55 00
+international-prefix 598 00
 
 area 1 0 incomplete
 area 1 2 incomplete

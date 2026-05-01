@@ -18,6 +18,8 @@ struct plan_data {
     unsigned char cc_set[1000];
     enum itu_t_e164_type_enum cc[1000];
     char *countries[1000];
+    char *national_prefixes[1000];
+    char *international_prefixes[1000];
     struct plan_area *areas[1000];
     struct cc_regex *subscribers[1000];
     size_t subscriber_count[1000];
@@ -127,6 +129,21 @@ static int validate_country_tag(const char *value)
            isupper((unsigned char)value[4]) ? 0 : -1;
 }
 
+static int validate_dial_prefix(const char *value)
+{
+    size_t i;
+
+    if(value[0] == 0)
+        return -1;
+
+    for(i = 0; value[i] != 0; i++) {
+        if(!isdigit((unsigned char)value[i]))
+            return -1;
+    }
+
+    return 0;
+}
+
 static void free_regex_entry(struct cc_regex *entry)
 {
     free((char *)entry->regex_ndc);
@@ -159,6 +176,12 @@ static void free_plan_data(struct plan_data *plan)
 
         free(plan->countries[i]);
         plan->countries[i] = NULL;
+
+        free(plan->national_prefixes[i]);
+        plan->national_prefixes[i] = NULL;
+
+        free(plan->international_prefixes[i]);
+        plan->international_prefixes[i] = NULL;
     }
 
     memset(plan->cc_set, 0, sizeof(plan->cc_set));
@@ -219,6 +242,21 @@ static int add_country(struct plan_data *plan, int country_code, const char *cou
 
     free(plan->countries[country_code]);
     plan->countries[country_code] = copy;
+    return 0;
+}
+
+static int add_prefix(char **prefixes, int country_code, const char *prefix)
+{
+    char *copy;
+
+    if(validate_dial_prefix(prefix) != 0)
+        return -1;
+
+    copy = plan_strdup(prefix);
+    if(copy == NULL) return -1;
+
+    free(prefixes[country_code]);
+    prefixes[country_code] = copy;
     return 0;
 }
 
@@ -327,6 +365,24 @@ static int parse_line(struct plan_data *plan, char *line, unsigned long line_no)
         return 0;
     }
 
+    if(strcmp(argv[0], "national-prefix") == 0) {
+        if(argc != 3) return set_plan_error(line_no, "national-prefix requires 2 arguments");
+        if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
+            return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
+        if(add_prefix(plan->national_prefixes, country_code, argv[2]) != 0)
+            return set_plan_error(line_no, "invalid national prefix '%s'", argv[2]);
+        return 0;
+    }
+
+    if(strcmp(argv[0], "international-prefix") == 0) {
+        if(argc != 3) return set_plan_error(line_no, "international-prefix requires 2 arguments");
+        if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
+            return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
+        if(add_prefix(plan->international_prefixes, country_code, argv[2]) != 0)
+            return set_plan_error(line_no, "invalid international prefix '%s'", argv[2]);
+        return 0;
+    }
+
     if(strcmp(argv[0], "subscriber") == 0) {
         if(argc != 5) return set_plan_error(line_no, "subscriber requires 4 arguments");
         if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
@@ -429,6 +485,22 @@ const char *itu_t_e164_cc_2_country(int country_code)
         return NULL;
 
     return active_plan.countries[country_code];
+}
+
+const char *itu_t_e164_cc_2_national_prefix(int country_code)
+{
+    if(country_code < 0 || country_code >= 1000)
+        return NULL;
+
+    return active_plan.national_prefixes[country_code];
+}
+
+const char *itu_t_e164_cc_2_international_prefix(int country_code)
+{
+    if(country_code < 0 || country_code >= 1000)
+        return NULL;
+
+    return active_plan.international_prefixes[country_code];
 }
 
 int itu_t_e164_plan_area_lookup(int country_code, int area_code, enum itu_t_area_type_enum *type)

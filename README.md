@@ -119,6 +119,9 @@ int itu_t_e164_load_default_plan(void);
 const char *itu_t_e164_plan_error(void);
 void itu_t_e164_reset_plan(void);
 const char *itu_t_e164_cc_2_country(int country_code);
+const char *itu_t_e164_cc_2_national_prefix(int country_code);
+const char *itu_t_e164_cc_2_international_prefix(int country_code);
+void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *context);
 ```
 
 Plan files use whitespace-separated directives. Masks containing spaces must be
@@ -127,6 +130,8 @@ quoted.
 ```text
 cc 55 number
 country 55 pt_BR
+national-prefix 55 0
+international-prefix 55 00
 area 55 19 number
 subscriber 55 * ^9[0-9]{0,8}$ #####-####
 subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
@@ -134,7 +139,21 @@ subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
 
 Country tags use the `ll_CC` form, such as `pt_BR`. The lookup returns the
 loaded string for the country code, or `NULL` when the loaded plan does not
-define one.
+define one. Dial prefixes are regulatory data for interpreting national and
+international dialing strings.
+
+Default locality is application context, not numbering-plan data. Set it on an
+`itu_t_e164_t` instance to accept national or local input without `+`:
+
+```c
+itu_t_e164_context_t context = {55, 19};
+
+itu_t_e164_set_context(&e164, &context);
+itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */
+itu_t_e164_set_value(&e164, "019912345678"); /* +55 (19) 91234-5678 */
+```
+
+Explicit international values starting with `+` are not changed by the context.
 
 The repository includes `data/e164-plan.txt` and a validator:
 
