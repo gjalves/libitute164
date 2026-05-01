@@ -26,12 +26,13 @@ const planText = await fetch("../../data/e164-plan.txt").then((response) => {
 });
 const plan = E164Plan.fromText(planText);
 const phone = new E164Number(plan);
+let phoneInput = fields.number.value;
 
 function numericValue(input) {
   return /^[0-9]+$/.test(input.value) ? Number(input.value) : 0;
 }
 
-function update() {
+function applyContext() {
   const restriction = Number(fields.restriction.value);
   phone.setContext({
     countryCode: numericValue(fields.country),
@@ -39,8 +40,36 @@ function update() {
     restriction: restrictions.has(restriction) ? restriction : RESTRICT_NONE,
     acceptAlphanumeric: fields.alphanumeric.checked,
   });
-  phone.setValue(fields.number.value);
+}
 
+function prefixAllowed(ch) {
+  if (ch === "+") return phone.context.restriction === RESTRICT_NONE;
+  if (ch === "(") return phone.context.restriction < RESTRICT_AREA;
+  return false;
+}
+
+function acceptedPhoneInputChar(ch) {
+  if (/^[0-9]$/.test(ch)) return true;
+  if (/^[A-Za-z]$/.test(ch)) return fields.alphanumeric.checked;
+  if ((ch === "+" || ch === "(") && phoneInput.length === 0) return prefixAllowed(ch);
+  return false;
+}
+
+function phoneDisplayValue() {
+  if (phone.pos === 0 && (phoneInput === "+" || phoneInput === "(")) return phoneInput;
+  return phone.getContextValue();
+}
+
+function syncPhoneField() {
+  const display = phoneDisplayValue();
+  fields.number.value = display;
+  if (document.activeElement === fields.number) {
+    fields.number.setSelectionRange(display.length, display.length);
+  }
+}
+
+function render() {
+  syncPhoneField();
   fields.raw.textContent = phone.value || "-";
   fields.full.textContent = phone.pos === 0 ? "" : phone.getValue();
   fields.context.textContent = phone.getContextValue();
@@ -48,9 +77,72 @@ function update() {
   fields.status.textContent = phone.isComplete() ? "complete" : "incomplete";
 }
 
-for (const input of Object.values(fields)) {
-  if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement)
-    input.addEventListener("input", update);
+function normalizePhoneInput(rawInput) {
+  let accepted = "";
+
+  phone.setValue("");
+  for (const ch of rawInput) {
+    if (!acceptedPhoneInputChar(ch)) continue;
+
+    const previousValue = phone.value;
+    const candidate = accepted + ch;
+
+    phone.setValue(candidate);
+    if (phone.value === previousValue && previousValue !== "") {
+      phone.setValue(accepted);
+      continue;
+    }
+    accepted = candidate;
+  }
+
+  phone.setValue(accepted);
+  return accepted;
 }
 
-update();
+function updateFromInput(nextInput) {
+  applyContext();
+  phoneInput = normalizePhoneInput(nextInput);
+  render();
+}
+
+function rebuildFromContext() {
+  updateFromInput(phoneInput);
+}
+
+function insertPhoneText(text) {
+  updateFromInput(phoneInput + text);
+}
+
+function deletePhoneText() {
+  if (phoneInput.length === 0) return;
+  updateFromInput(phoneInput.slice(0, -1));
+}
+
+fields.number.addEventListener("beforeinput", (event) => {
+  if (event.inputType === "deleteContentBackward" || event.inputType === "deleteContentForward") {
+    event.preventDefault();
+    deletePhoneText();
+    return;
+  }
+
+  if (event.inputType === "insertText" || event.inputType === "insertCompositionText") {
+    event.preventDefault();
+    insertPhoneText(event.data || "");
+    return;
+  }
+
+  event.preventDefault();
+});
+
+fields.number.addEventListener("keydown", (event) => {
+  if (event.key === "Backspace" || event.key === "Delete") {
+    event.preventDefault();
+    deletePhoneText();
+  }
+});
+
+for (const input of [fields.country, fields.area, fields.restriction, fields.alphanumeric]) {
+  input.addEventListener("input", rebuildFromContext);
+}
+
+rebuildFromContext();
