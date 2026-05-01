@@ -56,16 +56,13 @@ static unsigned long parse_number(const char *value)
     return *end == 0 ? parsed : 0;
 }
 
-static void read_context_field(int y, const char *label, const char *fallback, char *value, size_t size)
+static void read_context_field(int y, const char *label, char *value, size_t size)
 {
-    mvprintw(y, 2, "%s [%s]: ", label, fallback);
+    mvprintw(y, 2, "%s: ", label);
     clrtoeol();
     echo();
     getnstr(value, size - 1);
     noecho();
-
-    if(value[0] == 0)
-        snprintf(value, size, "%s", fallback);
 }
 
 static void configure_context(itu_t_e164_t *e164)
@@ -76,8 +73,9 @@ static void configure_context(itu_t_e164_t *e164)
 
     clear();
     mvprintw(1, 2, "Localidade padrao");
-    read_context_field(3, "DDI", "55", country, sizeof(country));
-    read_context_field(4, "DDD", "19", area, sizeof(area));
+    mvprintw(2, 2, "Deixe em branco para nao usar.");
+    read_context_field(4, "DDI", country, sizeof(country));
+    read_context_field(5, "DDD", area, sizeof(area));
 
     memset(&context, 0, sizeof(context));
     context.country_code = parse_number(country);
@@ -122,7 +120,7 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
 }
 
 int main() {
-    int startx, starty, width = INPUT_WIDTH, height = 6;
+    int startx, starty, width = INPUT_WIDTH, height = 7;
     WINDOW *win;
 
     itu_t_e164_t e164;

@@ -329,9 +329,23 @@ static void e164_test_context_local_and_national_input(void **state)
     (void) state;
     itu_t_e164_t e164;
     itu_t_e164_context_t context = {55, 19};
+    itu_t_e164_context_t country_context = {55, 0};
     char buffer[BUFSIZ];
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+91 2345678", buffer);
+    assert_string_equal("912345678", e164.value);
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &country_context);
+    itu_t_e164_set_value(&e164, "19912345678");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 91234-5678", buffer);
+    assert_string_equal("5519912345678", e164.value);
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_context(&e164, &context);
