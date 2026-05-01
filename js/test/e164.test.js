@@ -65,6 +65,21 @@ describe("E164Number", () => {
     assert.equal(phone.getValue(), "+598 1 234 5678");
   });
 
+  it("accepts Brazilian 0800 numbers from a default local context", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan, {
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_NONE,
+    });
+
+    phone.setValue("08000101010");
+    assert.equal(phone.value, "558000101010");
+    assert.equal(phone.getValue(), "+55 (800) 010 1010");
+    assert.equal(phone.getContextValue(), "(800) 010 1010");
+    assert.equal(phone.getCountry(), "pt_BR");
+  });
+
   it("handles countries without subscriber masks", () => {
     const plan = loadedPlan();
     const phone = new E164Number(plan);

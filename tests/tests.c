@@ -335,6 +335,15 @@ static void e164_test_load_plan_file(void **state)
     assert_string_equal("pt_BR", itu_t_e164_get_country(&e164));
 
     itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &(itu_t_e164_context_t){55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0});
+    itu_t_e164_set_value(&e164, "08000101010");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (800) 010 1010", buffer);
+    itu_t_e164_get_context_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("(800) 010 1010", buffer);
+    assert_string_equal("558000101010", e164.value);
+
+    itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+14165550123");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+1 (416) 555-0123", buffer);
