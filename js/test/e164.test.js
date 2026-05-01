@@ -77,9 +77,13 @@ describe("E164Number", () => {
 
     phone.setValue("08000101010");
     assert.equal(phone.value, "558000101010");
-    assert.equal(phone.getValue(), "+55 (800) 010 1010");
-    assert.equal(phone.getContextValue(), "(800) 010 1010");
+    assert.equal(phone.getValue(), "+55 800 010 10 10");
+    assert.equal(phone.getContextValue(), "0800 010 10 10");
     assert.equal(phone.getCountry(), "pt_BR");
+    assert.equal(phone.getNumberKind(), NUMBER_KIND_TOLL_FREE);
+
+    phone.setValue("080001010101");
+    assert.equal(phone.value, "558000101010");
     assert.equal(phone.getNumberKind(), NUMBER_KIND_TOLL_FREE);
   });
 

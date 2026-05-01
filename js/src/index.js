@@ -529,16 +529,22 @@ export class E164Number {
     return this.number.ndcLen > 0 && this.number.ndc !== this.context.areaCode;
   }
 
+  numberUsesAreaParentheses() {
+    return this.number.kind === NUMBER_KIND_REGULAR;
+  }
+
   getValue() {
     let result = `+${this.value.slice(0, this.cc.len)}`;
     const hasNdc = this.number.ndcLen > 0;
+    const parenthesizedArea = hasNdc && this.numberUsesAreaParentheses();
 
     if (this.cc.type !== CC_INCOMPLETE && this.cc.type !== CC_UNKNOWN) {
-      if (hasNdc) result += " (";
+      if (parenthesizedArea) result += " (";
+      else if (hasNdc) result += " ";
       if (this.number.type !== AREA_UNKNOWN) {
         if (hasNdc) result += String(this.number.ndc);
         if (this.number.type === AREA_NUMBER) {
-          if (hasNdc) result += ")";
+          if (parenthesizedArea) result += ")";
           result += " ";
 
           if (this.number.snLen > 0) {
@@ -556,13 +562,20 @@ export class E164Number {
     if (this.pos === 0) return "";
     let display = this.getValue();
     const restriction = this.context.restriction;
+    let countryPrefixRemoved = false;
 
     if (this.context.countryCode !== 0 && (restriction >= RESTRICT_COUNTRY || !this.inputCountryExplicit)) {
       const prefix = `+${this.context.countryCode}`;
       if (display.startsWith(prefix)) {
         display = display.slice(prefix.length);
         if (display[0] === " ") display = display.slice(1);
+        countryPrefixRemoved = true;
       }
+    }
+
+    if (countryPrefixRemoved && !this.numberUsesAreaParentheses()) {
+      const nationalPrefix = this.plan.nationalPrefix(this.cc.value);
+      if (nationalPrefix) return `${nationalPrefix}${display}`;
     }
 
     if (this.context.areaCode !== 0 && (restriction >= RESTRICT_AREA || !this.inputAreaExplicit)) {

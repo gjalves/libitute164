@@ -436,26 +436,35 @@ int print_mask(char *str, ssize_t size, const char *mask, const char *number)
     return str_pos;
 }
 
+static int number_uses_area_parentheses(const itu_t_e164_t *e164)
+{
+    return e164->number.kind == ITU_T_E164_NUMBER_KIND_REGULAR;
+}
+
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
 {
     ssize_t pos;
     int has_ndc;
+    int parenthesized_area;
 
     if(size <= 0) return 0;
 
     pos = appendf(buffer, size, 0, "+%.*s", e164->cc.len, &e164->value[0]);
     has_ndc = e164->number.ndc_len > 0;
+    parenthesized_area = has_ndc && number_uses_area_parentheses(e164);
 
     if((e164->cc.type != ITU_T_INCOMPLETE) && (e164->cc.type != ITU_T_UNKNOWN)) {
-        if(has_ndc)
+        if(parenthesized_area)
             pos = appendf(buffer, size, pos, " (");
+        else if(has_ndc)
+            pos = appendf(buffer, size, pos, " ");
 
         if(e164->number.type != ITU_T_AREA_UNKNOWN) {
             if(has_ndc)
                 pos = appendf(buffer, size, pos, "%u", e164->number.ndc);
 
             if(e164->number.type == ITU_T_AREA_NUMBER) {
-                if(has_ndc)
+                if(parenthesized_area)
                     pos = appendf(buffer, size, pos, ")");
                 pos = appendf(buffer, size, pos, " ");
 
@@ -478,6 +487,7 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     char full[BUFSIZ];
     const char *display = full;
     char prefix[24];
+    int country_prefix_removed = 0;
     uint8_t restriction;
 
     if(size <= 0) return 0;
@@ -496,7 +506,15 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
             display += strlen(prefix);
             if(display[0] == ' ')
                 display++;
+            country_prefix_removed = 1;
         }
+    }
+
+    if(country_prefix_removed && !number_uses_area_parentheses(e164)) {
+        const char *national_prefix = itu_t_e164_cc_2_national_prefix(e164->cc.value);
+
+        if(national_prefix != NULL && national_prefix[0] != 0)
+            return appendf(buffer, size, 0, "%s%s", national_prefix, display);
     }
 
     if(e164->context.area_code != 0 &&
