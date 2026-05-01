@@ -30,6 +30,51 @@ console.log(phone.getCountry());      // "pt_BR"
 The package does not fetch the plan by itself. Browser applications should load
 or bundle the text file and pass its contents to `E164Plan.fromText()`.
 
+## Web Component
+
+Importing `input-element.js` registers `<itute164-input>`:
+
+```js
+import { E164Plan } from "./src/index.js";
+import "./src/input-element.js";
+
+const planText = await fetch("/e164-plan.txt").then((response) => response.text());
+const plan = E164Plan.fromText(planText);
+const input = document.querySelector("itute164-input");
+
+input.plan = plan;
+input.addEventListener("itute164-change", (event) => {
+  console.log(event.detail.value);
+});
+```
+
+```html
+<itute164-input
+  country-code="55"
+  area-code="19"
+  restriction="area"
+  value="912345678"
+  show-details>
+</itute164-input>
+```
+
+Attributes and properties:
+
+- `plan`
+- `value`
+- `rawValue`
+- `countryCode` / `country-code`
+- `areaCode` / `area-code`
+- `restriction`
+- `acceptAlphanumeric` / `accept-alphanumeric`
+- `complete`
+- `country`
+
+The component keeps its own editing buffer, displays the formatted contextual
+number in the input, limits extra characters when the number is complete, and
+emits `itute164-change` with `{ value, rawValue, displayValue, contextValue,
+country, complete }`.
+
 ## API
 
 ### `E164Plan`

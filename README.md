@@ -45,6 +45,20 @@ phone.getContextValue(); // "91234-5678"
 phone.getCountry();      // "pt_BR"
 ```
 
+The browser input behavior is available as a Web Component:
+
+```js
+import { E164Plan } from "@itute164/e164";
+import "@itute164/e164/input-element";
+
+const planText = await fetch("/e164-plan.txt").then((response) => response.text());
+document.querySelector("itute164-input").plan = E164Plan.fromText(planText);
+```
+
+```html
+<itute164-input country-code="55" area-code="19" restriction="area" show-details></itute164-input>
+```
+
 Run the JavaScript tests with:
 
 ```sh

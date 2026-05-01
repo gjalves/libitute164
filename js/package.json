@@ -5,7 +5,8 @@
   "type": "module",
   "main": "./src/index.js",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./input-element": "./src/input-element.js"
   },
   "bin": {
     "itute164-plan-check-js": "./tools/plan-check.js"
