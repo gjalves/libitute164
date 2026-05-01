@@ -9,6 +9,8 @@ import {
   RESTRICT_AREA,
   RESTRICT_COUNTRY,
   RESTRICT_NONE,
+  NUMBER_KIND_REGULAR,
+  NUMBER_KIND_TOLL_FREE,
 } from "../src/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -78,6 +80,7 @@ describe("E164Number", () => {
     assert.equal(phone.getValue(), "+55 (800) 010 1010");
     assert.equal(phone.getContextValue(), "(800) 010 1010");
     assert.equal(phone.getCountry(), "pt_BR");
+    assert.equal(phone.getNumberKind(), NUMBER_KIND_TOLL_FREE);
   });
 
   it("handles countries without subscriber masks", () => {
@@ -88,6 +91,7 @@ describe("E164Number", () => {
     assert.equal(phone.getValue(), "+31 123456");
     assert.equal(phone.value, "31123456");
     assert.equal(phone.getCountry(), "nl_NL");
+    assert.equal(phone.getNumberKind(), NUMBER_KIND_REGULAR);
   });
 
   it("clears values without clearing context", () => {

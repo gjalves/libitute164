@@ -25,6 +25,7 @@ console.log(phone.value);             // "5519912345678"
 console.log(phone.getValue());        // "+55 (19) 91234-5678"
 console.log(phone.getContextValue()); // "91234-5678"
 console.log(phone.getCountry());      // "pt_BR"
+console.log(phone.getNumberKind());   // "regular"
 ```
 
 The package does not fetch the plan by itself. Browser applications should load
@@ -69,11 +70,12 @@ Attributes and properties:
 - `acceptAlphanumeric` / `accept-alphanumeric`
 - `complete`
 - `country`
+- `numberKind`
 
 The component keeps its own editing buffer, displays the formatted contextual
 number in the input, limits extra characters when the number is complete, and
 emits `itute164-change` with `{ value, rawValue, displayValue, contextValue,
-country, complete }`.
+country, kind, complete }`.
 
 ## API
 
@@ -118,6 +120,7 @@ Number methods and properties:
 - `phone.getValue()`
 - `phone.getContextValue()`
 - `phone.getCountry()`
+- `phone.getNumberKind()`
 - `phone.isComplete()`
 - `phone.addDigit(digit)`
 - `phone.delDigit()`

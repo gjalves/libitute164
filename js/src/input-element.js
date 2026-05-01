@@ -1,5 +1,6 @@
 import {
   E164Number,
+  NUMBER_KIND_UNKNOWN,
   RESTRICT_AREA,
   RESTRICT_COUNTRY,
   RESTRICT_NONE,
@@ -150,6 +151,10 @@ template.innerHTML = `
       <dd id="detected-country"></dd>
     </div>
     <div>
+      <dt>Kind</dt>
+      <dd id="kind"></dd>
+    </div>
+    <div>
       <dt>Status</dt>
       <dd id="status"></dd>
     </div>
@@ -191,6 +196,7 @@ export class Itute164InputElement extends HTMLElement {
       full: this.shadowRoot.querySelector("#full"),
       context: this.shadowRoot.querySelector("#context"),
       detectedCountry: this.shadowRoot.querySelector("#detected-country"),
+      kind: this.shadowRoot.querySelector("#kind"),
       status: this.shadowRoot.querySelector("#status"),
     };
 
@@ -295,6 +301,10 @@ export class Itute164InputElement extends HTMLElement {
 
   get country() {
     return this._phone?.getCountry() || null;
+  }
+
+  get numberKind() {
+    return this._phone?.getNumberKind() || NUMBER_KIND_UNKNOWN;
   }
 
   handleEvent(event) {
@@ -472,6 +482,7 @@ export class Itute164InputElement extends HTMLElement {
       displayValue: this._phone?.getValue() || "",
       contextValue: this._phone?.getContextValue() || "",
       country: this.country,
+      kind: this.numberKind,
       complete: this.complete,
     };
   }
@@ -484,6 +495,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.full.textContent = this._phone?.pos === 0 ? "" : this._phone.getValue();
     this.fields.context.textContent = this._phone?.getContextValue() || "";
     this.fields.detectedCountry.textContent = this.country || "unknown";
+    this.fields.kind.textContent = this.numberKind;
     this.fields.status.textContent = this.complete ? "complete" : "incomplete";
 
     this.dispatchEvent(new CustomEvent("itute164-change", {

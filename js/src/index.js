@@ -16,6 +16,24 @@ export const RESTRICT_NONE = 0;
 export const RESTRICT_COUNTRY = 1;
 export const RESTRICT_AREA = 2;
 
+export const NUMBER_KIND_UNKNOWN = "unknown";
+export const NUMBER_KIND_REGULAR = "regular";
+export const NUMBER_KIND_TOLL_FREE = "toll-free";
+export const NUMBER_KIND_SHORT = "short";
+export const NUMBER_KIND_PREMIUM = "premium";
+export const NUMBER_KIND_EMERGENCY = "emergency";
+export const NUMBER_KIND_SERVICE = "service";
+
+const NUMBER_KINDS = new Set([
+  NUMBER_KIND_UNKNOWN,
+  NUMBER_KIND_REGULAR,
+  NUMBER_KIND_TOLL_FREE,
+  NUMBER_KIND_SHORT,
+  NUMBER_KIND_PREMIUM,
+  NUMBER_KIND_EMERGENCY,
+  NUMBER_KIND_SERVICE,
+]);
+
 const CC_TYPES = new Set([
   CC_UNKNOWN,
   CC_INCOMPLETE,
@@ -196,15 +214,17 @@ export class E164Plan {
     }
 
     if (directive === "subscriber") {
-      if (args.length !== 5) fail("subscriber requires 4 arguments");
+      if (args.length !== 5 && args.length !== 6) fail("subscriber requires 4 or 5 arguments");
       if (countryCode === null) fail(`invalid country code '${args[1]}'`);
       if (!args[4].includes("#")) fail("invalid subscriber mask");
+      if (args.length === 6 && !NUMBER_KINDS.has(args[5])) fail(`invalid number kind '${args[5]}'`);
 
       const entries = this.subscribers.get(countryCode) || [];
       entries.push({
         regexNdc: args[2] === "*" ? null : regexFromPlan(args[2]),
         regexSn: regexFromPlan(args[3]),
         mask: args[4],
+        kind: args[5] || NUMBER_KIND_REGULAR,
       });
       this.subscribers.set(countryCode, entries);
       this.knownCountryCodes.add(countryCode);
@@ -277,7 +297,7 @@ export class E164Number {
     this.value = "";
     this.rawPhone = 0;
     this.cc = { type: CC_UNKNOWN, len: 0, value: 0 };
-    this.number = { type: AREA_UNKNOWN, ndcLen: 0, ndc: 0, snLen: 0, sn: 0, mask: null };
+    this.number = { type: AREA_UNKNOWN, ndcLen: 0, ndc: 0, snLen: 0, sn: 0, mask: null, kind: NUMBER_KIND_UNKNOWN };
     this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false };
     this.inputCountryExplicit = false;
     this.inputAreaExplicit = false;
@@ -433,12 +453,13 @@ export class E164Number {
 
   updateNumber() {
     const areaDigits = this.pos - this.cc.len;
-    this.number = { type: this.plan.areaToType(this.cc.value, 0), ndcLen: 0, ndc: 0, snLen: 0, sn: 0, mask: null };
+    this.number = { type: this.plan.areaToType(this.cc.value, 0), ndcLen: 0, ndc: 0, snLen: 0, sn: 0, mask: null, kind: NUMBER_KIND_UNKNOWN };
 
     if (this.number.type === AREA_UNKNOWN) {
       this.number.type = AREA_NUMBER;
       this.number.snLen = areaDigits;
       this.number.sn = Number(this.value.slice(this.cc.len) || 0);
+      this.number.kind = NUMBER_KIND_REGULAR;
       return;
     }
 
@@ -473,7 +494,7 @@ export class E164Number {
     for (const rule of this.plan.subscriberRules(this.cc.value)) {
       if (ndc && rule.regexNdc && !rule.regexNdc.test(ndc)) continue;
       rule.regexSn.lastIndex = 0;
-      if (rule.regexSn.test(sn)) return rule.mask;
+      if (rule.regexSn.test(sn)) return rule;
     }
     return null;
   }
@@ -485,9 +506,10 @@ export class E164Number {
     const ndc = this.number.ndc ? String(this.number.ndc) : null;
     let sn = this.value.slice(this.cc.len + this.number.ndcLen);
     while (this.number.snLen > 0) {
-      const mask = this.subscriberCheck(ndc, sn);
-      if (mask !== null) {
-        this.number.mask = mask;
+      const rule = this.subscriberCheck(ndc, sn);
+      if (rule !== null) {
+        this.number.mask = rule.mask;
+        this.number.kind = rule.kind;
         return;
       }
       this.number.snLen--;
@@ -495,7 +517,9 @@ export class E164Number {
       sn = this.value.slice(this.cc.len + this.number.ndcLen);
     }
 
-    this.number.mask = this.subscriberCheck(ndc, sn);
+    const rule = this.subscriberCheck(ndc, sn);
+    this.number.mask = rule?.mask || null;
+    this.number.kind = rule?.kind || NUMBER_KIND_UNKNOWN;
   }
 
   contextRejectsValue() {
@@ -558,6 +582,10 @@ export class E164Number {
       return this.plan.areaToCountry(this.cc.value, this.number.ndc);
     }
     return this.plan.ccToCountry(this.cc.value);
+  }
+
+  getNumberKind() {
+    return this.cc.type === CC_NUMBER ? this.number.kind : NUMBER_KIND_UNKNOWN;
   }
 
   isComplete() {

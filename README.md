@@ -236,6 +236,8 @@ enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code
 const char *itu_t_e164_cc_2_country(int country_code);
 const char *itu_t_e164_area_2_country(int country_code, int area_code);
 const char *itu_t_e164_get_country(const itu_t_e164_t *e164);
+enum itu_t_e164_number_kind_enum itu_t_e164_get_number_kind(const itu_t_e164_t *e164);
+const char *itu_t_e164_number_kind_name(enum itu_t_e164_number_kind_enum kind);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
@@ -247,7 +249,9 @@ when no external rule overrides the requested entry. Country tags use the
 `NULL`. `itu_t_e164_area_2_country()` returns an area-specific country tag
 when one exists and otherwise falls back to the country-code tag.
 `itu_t_e164_get_country()` applies the same lookup to an already parsed
-number.
+number. `itu_t_e164_get_number_kind()` returns classification metadata from
+the subscriber rule that matched the parsed number, such as `regular`,
+`toll-free`, `short`, `premium`, `emergency`, or `service`.
 
 ### External Numbering Plans
 The library can load numbering plan data from a text file at runtime. Loaded
@@ -301,7 +305,7 @@ area-country <country-code> <area-code> <ll_CC>
 national-prefix <country-code> <digits>
 international-prefix <country-code> <digits>
 area <country-code> <area-code> <unknown|incomplete|number>
-subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask>
+subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask> [kind]
 ```
 
 `country-code` must be in the range `0..999`. `area-code` must be in the range
@@ -324,7 +328,9 @@ NDC regex is matched against the area code; use `*` to match any area code.
 The subscriber regex is matched against the subscriber number. The mask must
 contain at least one `#`; each `#` consumes one subscriber digit and any other
 character is copied literally to the formatted output. Subscriber rules are
-evaluated in file order for the country.
+evaluated in file order for the country. The optional `kind` field classifies
+the matched number and defaults to `regular`; accepted values are `unknown`,
+`regular`, `toll-free`, `short`, `premium`, `emergency`, and `service`.
 
 Default locality is application context, not numbering-plan data. Set it on an
 `itu_t_e164_t` instance to accept national or local input without `+`:

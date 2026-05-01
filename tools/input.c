@@ -391,8 +391,9 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     else
         mvwprintw(win, 10, 2, "%-24s", "");
 
-    mvwprintw(win, 10, 34, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
-    mvwprintw(win, 11, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
+    mvwprintw(win, 10, 34, "Tipo: %-10s", itu_t_e164_number_kind_name(itu_t_e164_get_number_kind(e164)));
+    mvwprintw(win, 11, 2, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
+    mvwprintw(win, 12, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
     wmove(win, state->field == FIELD_PHONE ? 7 : state->field + 2, state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
     wrefresh(win);
 }

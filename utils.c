@@ -189,7 +189,7 @@ static void itu_t_e164_truncate(itu_t_e164_t *e164, int pos)
     itu_t_e164_refresh_raw_phone(e164);
 }
 
-static int itu_t_e164_cc_subscriber_check(int country_code, const char *ndc, const char *sn, const char **mask)
+static int itu_t_e164_cc_subscriber_check(int country_code, const char *ndc, const char *sn, const char **mask, enum itu_t_e164_number_kind_enum *kind)
 {
     int result;
     regex_t regex_ndc;
@@ -197,6 +197,7 @@ static int itu_t_e164_cc_subscriber_check(int country_code, const char *ndc, con
     struct cc_regex *cc_regex;
 
     *mask = NULL;
+    *kind = ITU_T_E164_NUMBER_KIND_UNKNOWN;
     if((cc_regex = itu_t_e164_cc_subscriber_regex(country_code)) == NULL) return 0;
 
     result = 1;
@@ -219,6 +220,7 @@ static int itu_t_e164_cc_subscriber_check(int country_code, const char *ndc, con
         result = regexec(&regex_sn, sn, 0, NULL, 0);
         regfree(&regex_sn);
         *mask = cc_regex->mask_sn;
+        *kind = cc_regex->kind;
         cc_regex++;
         if(result == 0) break;
     }
@@ -243,12 +245,14 @@ static void itu_t_e164_update_number(itu_t_e164_t *e164)
     // Make sure all the digits are reacheable through the hierarch
     e164->number.ndc = 0;
     e164->number.ndc_len = 0;
+    e164->number.kind = ITU_T_E164_NUMBER_KIND_UNKNOWN;
     e164->number.type = itu_t_e164_area_2_type(e164->cc.value, e164->number.ndc);
     if(e164->number.type == ITU_T_AREA_UNKNOWN) {
         e164->number.type = ITU_T_AREA_NUMBER;
         e164->number.sn_len = area_digits;
         e164->number.sn = atol(&e164->value[e164->cc.len]);
         e164->number.mask = NULL;
+        e164->number.kind = ITU_T_E164_NUMBER_KIND_REGULAR;
         return;
     }
 
@@ -292,7 +296,7 @@ static void itu_t_e164_update_number(itu_t_e164_t *e164)
         snprintf(area_code, sizeof(area_code), "%u", e164->number.ndc);
 
     sn = &e164->value[e164->cc.len + e164->number.ndc_len];
-    while(e164->number.sn_len > 0 && itu_t_e164_cc_subscriber_check(e164->cc.value, e164->number.ndc?area_code:NULL, sn, &e164->number.mask) == 0) {
+    while(e164->number.sn_len > 0 && itu_t_e164_cc_subscriber_check(e164->cc.value, e164->number.ndc?area_code:NULL, sn, &e164->number.mask, &e164->number.kind) == 0) {
         e164->number.sn_len--;
         itu_t_e164_truncate(e164, e164->pos - 1);
         sn = &e164->value[e164->cc.len + e164->number.ndc_len];

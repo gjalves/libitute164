@@ -361,27 +361,27 @@ struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code)
     static struct cc_regex *codes[1000];
     // NANPA
     static struct cc_regex codes_1[] = {
-        { NULL, "^[0-9]{0,7}$", "###-####" },
-        { NULL, NULL,           NULL},
+        { NULL, "^[0-9]{0,7}$", "###-####", ITU_T_E164_NUMBER_KIND_REGULAR },
+        { NULL, NULL,           NULL,       ITU_T_E164_NUMBER_KIND_UNKNOWN },
     };
     // Argentina
     static struct cc_regex codes_54[] = {
-        { "^[0-9]{4}$", "^[0-9]{0,6}$",  "######" },
-        { "^[0-9]{3}$", "^[0-9]{0,7}$",  "### ####" },
-        { "^[0-9]{2}$", "^[0-9]{0,8}$",  "#### ####" },
-        { NULL,         "^$",            "#### ####" },
-        { NULL,         NULL,            NULL},
+        { "^[0-9]{4}$", "^[0-9]{0,6}$",  "######",    ITU_T_E164_NUMBER_KIND_REGULAR },
+        { "^[0-9]{3}$", "^[0-9]{0,7}$",  "### ####",  ITU_T_E164_NUMBER_KIND_REGULAR },
+        { "^[0-9]{2}$", "^[0-9]{0,8}$",  "#### ####", ITU_T_E164_NUMBER_KIND_REGULAR },
+        { NULL,         "^$",            "#### ####", ITU_T_E164_NUMBER_KIND_REGULAR },
+        { NULL,         NULL,            NULL,        ITU_T_E164_NUMBER_KIND_UNKNOWN },
     };
     // Brazil
     static struct cc_regex codes_55[] = {
-        { NULL, "^9[0-9]{0,8}$", "#####-####" },
-        { NULL, "^[0-9]{0,8}$",  "####-####" },
-        { NULL, NULL,            NULL},
+        { NULL, "^9[0-9]{0,8}$", "#####-####", ITU_T_E164_NUMBER_KIND_REGULAR },
+        { NULL, "^[0-9]{0,8}$",  "####-####",  ITU_T_E164_NUMBER_KIND_REGULAR },
+        { NULL, NULL,            NULL,         ITU_T_E164_NUMBER_KIND_UNKNOWN },
     };
     // Uruguay
     static struct cc_regex codes_598[] = {
-        { NULL, "^[0-9]{0,8}$", "# ### ####" },
-        { NULL, NULL,           NULL},
+        { NULL, "^[0-9]{0,8}$", "# ### ####", ITU_T_E164_NUMBER_KIND_REGULAR },
+        { NULL, NULL,           NULL,         ITU_T_E164_NUMBER_KIND_UNKNOWN },
     };
     codes[1] = codes_1;
     codes[54] = codes_54;

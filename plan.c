@@ -111,6 +111,20 @@ static int parse_area_type(const char *value, enum itu_t_area_type_enum *type)
     return 0;
 }
 
+static int parse_number_kind(const char *value, enum itu_t_e164_number_kind_enum *kind)
+{
+    if(strcmp(value, "unknown") == 0) *kind = ITU_T_E164_NUMBER_KIND_UNKNOWN;
+    else if(strcmp(value, "regular") == 0) *kind = ITU_T_E164_NUMBER_KIND_REGULAR;
+    else if(strcmp(value, "toll-free") == 0) *kind = ITU_T_E164_NUMBER_KIND_TOLL_FREE;
+    else if(strcmp(value, "short") == 0) *kind = ITU_T_E164_NUMBER_KIND_SHORT;
+    else if(strcmp(value, "premium") == 0) *kind = ITU_T_E164_NUMBER_KIND_PREMIUM;
+    else if(strcmp(value, "emergency") == 0) *kind = ITU_T_E164_NUMBER_KIND_EMERGENCY;
+    else if(strcmp(value, "service") == 0) *kind = ITU_T_E164_NUMBER_KIND_SERVICE;
+    else return -1;
+
+    return 0;
+}
+
 static int validate_regex(const char *value)
 {
     regex_t regex;
@@ -311,7 +325,7 @@ static int add_prefix(char **prefixes, int country_code, const char *prefix)
     return 0;
 }
 
-static int add_subscriber(struct plan_data *plan, int country_code, const char *regex_ndc, const char *regex_sn, const char *mask)
+static int add_subscriber(struct plan_data *plan, int country_code, const char *regex_ndc, const char *regex_sn, const char *mask, enum itu_t_e164_number_kind_enum kind)
 {
     struct cc_regex *entries;
     struct cc_regex *entry;
@@ -331,6 +345,7 @@ static int add_subscriber(struct plan_data *plan, int country_code, const char *
     entry->regex_ndc = strcmp(regex_ndc, "*") == 0 ? NULL : plan_strdup(regex_ndc);
     entry->regex_sn = plan_strdup(regex_sn);
     entry->mask_sn = plan_strdup(mask);
+    entry->kind = kind;
 
     if((strcmp(regex_ndc, "*") != 0 && entry->regex_ndc == NULL) || entry->regex_sn == NULL || entry->mask_sn == NULL) {
         free_regex_entry(entry);
@@ -340,6 +355,7 @@ static int add_subscriber(struct plan_data *plan, int country_code, const char *
     entries[count + 1].regex_ndc = NULL;
     entries[count + 1].regex_sn = NULL;
     entries[count + 1].mask_sn = NULL;
+    entries[count + 1].kind = ITU_T_E164_NUMBER_KIND_UNKNOWN;
     plan->subscriber_count[country_code] = count + 1;
     return 0;
 }
@@ -371,11 +387,11 @@ static int tokenize_line(char *line, char **argv, int max_args)
 
 static int parse_line(struct plan_data *plan, char *line, unsigned long line_no)
 {
-    char *argv[5];
+    char *argv[6];
     int argc;
     int country_code;
 
-    argc = tokenize_line(line, argv, 5);
+    argc = tokenize_line(line, argv, 6);
     if(argc < 0) return set_plan_error(line_no, "invalid quoting or too many fields");
     if(argc == 0) return 0;
 
@@ -448,10 +464,14 @@ static int parse_line(struct plan_data *plan, char *line, unsigned long line_no)
     }
 
     if(strcmp(argv[0], "subscriber") == 0) {
-        if(argc != 5) return set_plan_error(line_no, "subscriber requires 4 arguments");
+        enum itu_t_e164_number_kind_enum kind = ITU_T_E164_NUMBER_KIND_REGULAR;
+
+        if(argc != 5 && argc != 6) return set_plan_error(line_no, "subscriber requires 4 or 5 arguments");
         if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
             return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
-        if(add_subscriber(plan, country_code, argv[2], argv[3], argv[4]) != 0)
+        if(argc == 6 && parse_number_kind(argv[5], &kind) != 0)
+            return set_plan_error(line_no, "invalid number kind '%s'", argv[5]);
+        if(add_subscriber(plan, country_code, argv[2], argv[3], argv[4], kind) != 0)
             return set_plan_error(line_no, "invalid subscriber regex or mask");
         return 0;
     }
@@ -622,6 +642,34 @@ const char *itu_t_e164_get_country(const itu_t_e164_t *e164)
         return itu_t_e164_area_2_country(e164->cc.value, e164->number.ndc);
 
     return itu_t_e164_cc_2_country(e164->cc.value);
+}
+
+enum itu_t_e164_number_kind_enum itu_t_e164_get_number_kind(const itu_t_e164_t *e164)
+{
+    if(e164 == NULL || e164->cc.type != ITU_T_NUMBER)
+        return ITU_T_E164_NUMBER_KIND_UNKNOWN;
+
+    return e164->number.kind;
+}
+
+const char *itu_t_e164_number_kind_name(enum itu_t_e164_number_kind_enum kind)
+{
+    switch(kind) {
+        case ITU_T_E164_NUMBER_KIND_REGULAR:
+            return "regular";
+        case ITU_T_E164_NUMBER_KIND_TOLL_FREE:
+            return "toll-free";
+        case ITU_T_E164_NUMBER_KIND_SHORT:
+            return "short";
+        case ITU_T_E164_NUMBER_KIND_PREMIUM:
+            return "premium";
+        case ITU_T_E164_NUMBER_KIND_EMERGENCY:
+            return "emergency";
+        case ITU_T_E164_NUMBER_KIND_SERVICE:
+            return "service";
+        default:
+            return "unknown";
+    }
 }
 
 const char *itu_t_e164_cc_2_national_prefix(int country_code)

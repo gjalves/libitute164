@@ -26,6 +26,16 @@ enum itu_t_e164_type_enum {
     ITU_T_TRIALS,
 };
 
+enum itu_t_e164_number_kind_enum {
+    ITU_T_E164_NUMBER_KIND_UNKNOWN,
+    ITU_T_E164_NUMBER_KIND_REGULAR,
+    ITU_T_E164_NUMBER_KIND_TOLL_FREE,
+    ITU_T_E164_NUMBER_KIND_SHORT,
+    ITU_T_E164_NUMBER_KIND_PREMIUM,
+    ITU_T_E164_NUMBER_KIND_EMERGENCY,
+    ITU_T_E164_NUMBER_KIND_SERVICE,
+};
+
 // Country_code
 typedef struct {
     enum itu_t_e164_type_enum type;
@@ -69,6 +79,7 @@ typedef struct {
             uint64_t sn;
 
             const char *mask;
+            enum itu_t_e164_number_kind_enum kind;
         } number;
 
         // ITU_T_GEOGRAPHIC
@@ -114,12 +125,15 @@ struct cc_regex {
     const char *regex_ndc;
     const char *regex_sn;
     const char *mask_sn;
+    enum itu_t_e164_number_kind_enum kind;
 };
 
 enum itu_t_e164_type_enum itu_t_e164_cc_2_type(int country_code);
 const char *itu_t_e164_cc_2_country(int country_code);
 const char *itu_t_e164_area_2_country(int country_code, int area_code);
 const char *itu_t_e164_get_country(const itu_t_e164_t *e164);
+enum itu_t_e164_number_kind_enum itu_t_e164_get_number_kind(const itu_t_e164_t *e164);
+const char *itu_t_e164_number_kind_name(enum itu_t_e164_number_kind_enum kind);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
