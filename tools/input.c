@@ -1,5 +1,8 @@
 #include <ncurses.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <libitute164.h>
 
 #define INPUT_WIDTH 40
@@ -41,31 +44,55 @@ static void draw_phone_state(WINDOW *win, int y, int x, itu_t_e164_t *e164, int 
         mvwprintw(win, y + 1, x, "%-*s", INPUT_WIDTH - x - 2, "");
 }
 
-int phone_pos2mask(int pos)
+static unsigned long parse_number(const char *value)
 {
-    switch(pos) {
-        case -1: return 1;
-        case 0: return 2;
-        case 1: return 3;
-        case 2: return 6;
-        case 3: return 7;
-        case 4: return 10;
-        case 5: return 11;
-        case 6: return 12;
-        case 7: return 13;
-        case 8: return 14;
-        case 9: return 16;
-        case 10: return 17;
-        case 11: return 18;
-        case 12: return 19;
-        case 13: return 20;
-        default: return -1;
-    }
+    char *end;
+    unsigned long parsed;
+
+    if(value[0] == 0)
+        return 0;
+
+    parsed = strtoul(value, &end, 10);
+    return *end == 0 ? parsed : 0;
+}
+
+static void read_context_field(int y, const char *label, const char *fallback, char *value, size_t size)
+{
+    mvprintw(y, 2, "%s [%s]: ", label, fallback);
+    clrtoeol();
+    echo();
+    getnstr(value, size - 1);
+    noecho();
+
+    if(value[0] == 0)
+        snprintf(value, size, "%s", fallback);
+}
+
+static void configure_context(itu_t_e164_t *e164)
+{
+    char country[8];
+    char area[8];
+    itu_t_e164_context_t context;
+
+    clear();
+    mvprintw(1, 2, "Localidade padrao");
+    read_context_field(3, "DDI", "55", country, sizeof(country));
+    read_context_field(4, "DDD", "19", area, sizeof(area));
+
+    memset(&context, 0, sizeof(context));
+    context.country_code = parse_number(country);
+    context.area_code = parse_number(area);
+    itu_t_e164_set_context(e164, &context);
+    clear();
 }
 
 void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
     int ch;
     int bytes;
+    char input[sizeof(e164->value)];
+    size_t input_len = 0;
+
+    input[0] = 0;
 
     draw_phone_state(win, y, x, e164, &bytes);
     wmove(win, y, x + bytes);
@@ -79,10 +106,15 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
             break; // Concluir com Enter
         } else if (ch == KEY_BACKSPACE || ch == 127) {
             // Apagar o último caractere
-            itu_t_e164_del_digit(e164);
+            if(input_len > 0)
+                input[--input_len] = 0;
         } else if (isdigit(ch)) {
-            itu_t_e164_add_digit(e164, ch);
+            if(input_len < sizeof(input) - 1) {
+                input[input_len++] = ch;
+                input[input_len] = 0;
+            }
         }
+        itu_t_e164_set_value(e164, input);
         draw_phone_state(win, y, x, e164, &bytes);
         wmove(win, y, x + bytes);
         wrefresh(win);
@@ -102,6 +134,7 @@ int main() {
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
+    configure_context(&e164);
 
     starty = (LINES - height) / 2; // Centraliza verticalmente
     startx = (COLS - width) / 2;  // Centraliza horizontalmente

@@ -335,6 +335,11 @@ static void e164_test_context_local_and_national_input(void **state)
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_context(&e164, &context);
+    itu_t_e164_set_value(&e164, "");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+", buffer);
+    assert_string_equal("", e164.value);
+
     itu_t_e164_set_value(&e164, "912345678");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+55 (19) 91234-5678", buffer);

@@ -83,7 +83,7 @@ static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *val
     size_t pos = 0;
 
     digits[0] = 0;
-    if(e164->context.country_code == 0)
+    if(value[0] == 0 || e164->context.country_code == 0)
         return append_digits(digits, size, pos, value);
 
     prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
