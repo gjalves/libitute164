@@ -7,7 +7,11 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "bin": {
+    "itute164-plan-check-js": "./tools/plan-check.js"
+  },
   "scripts": {
+    "check-plan": "node tools/plan-check.js ../data/e164-plan.txt",
     "test": "node --test test/*.test.js"
   },
   "license": "MIT"

@@ -6,7 +6,7 @@ AR = ar
 SOURCES = $(wildcard *.c)
 OBJECTS = $(patsubst %.c, %.o, $(SOURCES))
 
-.PHONY: all tests tools test check check-plan js-test benchmark sanitize ci install clean deb
+.PHONY: all tests tools test check check-plan js-test js-check-plan benchmark sanitize ci install clean deb
 
 all: libitute164.a tests tools
 
@@ -27,6 +27,9 @@ check-plan: tools
 
 js-test:
 	cd js && npm test
+
+js-check-plan:
+	cd js && npm run check-plan
 
 benchmark: libitute164.a
 	$(MAKE) -C tools benchmark
