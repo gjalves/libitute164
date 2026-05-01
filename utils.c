@@ -255,25 +255,23 @@ int print_mask(char *str, ssize_t size, const char *mask, const char *number)
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
 {
     ssize_t pos;
+    int has_ndc;
 
     if(size <= 0) return 0;
 
     pos = appendf(buffer, size, 0, "+%.*s", e164->cc.len, &e164->value[0]);
+    has_ndc = e164->number.ndc_len > 0;
 
     if((e164->cc.type != ITU_T_INCOMPLETE) && (e164->cc.type != ITU_T_UNKNOWN)) {
-        // Only shows something if there is area code in this country code
-        if(!((e164->number.type == ITU_T_AREA_NUMBER) && (e164->number.ndc_len == 0)))
+        if(has_ndc)
             pos = appendf(buffer, size, pos, " (");
 
-        //if((e164->number.type != ITU_T_AREA_UNKNOWN) && (e164->number.ndc_len > 0)) {
         if(e164->number.type != ITU_T_AREA_UNKNOWN) {
-            // Only shows something if there is area code in this country code
-            if(!((e164->number.type == ITU_T_AREA_NUMBER) && (e164->number.ndc_len == 0)))
+            if(has_ndc)
                 pos = appendf(buffer, size, pos, "%u", e164->number.ndc);
 
             if(e164->number.type == ITU_T_AREA_NUMBER) {
-                // Only shows something if there is area code in this country code
-                if(!((e164->number.type == ITU_T_AREA_NUMBER) && (e164->number.ndc_len == 0)))
+                if(has_ndc)
                     pos = appendf(buffer, size, pos, ")");
                 pos = appendf(buffer, size, pos, " ");
 

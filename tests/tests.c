@@ -110,7 +110,7 @@ static void e164_test_append_spare_cc(void **state)
     itu_t_e164_add_digit(&e164, '7');
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_true(e164.pos == 3);
-    assert_string_equal("+857 (", buffer);
+    assert_string_equal("+857", buffer);
     assert_string_equal("857", e164.value);
     assert_int_equal(857, e164.raw_phone);
 }
@@ -128,7 +128,7 @@ static void e164_test_append_invalid_cc(void **state)
     itu_t_e164_add_digit(&e164, '1');
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_true(e164.pos == 3);
-    assert_string_equal("+214 (", buffer);
+    assert_string_equal("+214", buffer);
     assert_string_equal("214", e164.value);
 }
 
@@ -309,6 +309,12 @@ static void e164_test_load_plan_file(void **state)
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
     assert_string_equal("pt_BR", itu_t_e164_cc_2_country(55));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "+55");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55", buffer);
+
     itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+551912345678");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
