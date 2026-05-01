@@ -233,11 +233,11 @@ subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask>
 `0..9999`. Country tags must use the `ll_CC` form, such as `pt_BR`. Dial
 prefixes must contain digits only.
 
-The current `country` directive stores one tag per country code. Shared E.164
-country codes therefore use a representative/default tag until the file format
-has first-class support for multiple territories behind the same code.
-`area-country` refines that tag for numbering plans where the national
-destination code identifies the country or territory, such as NANP `+1` NPAs.
+The `country` directive stores one tag per country code and should only be used
+when the country code alone identifies the country. Shared E.164 country codes
+should omit `country` unless a reliable default exists. Use `area-country` for
+numbering plans where the national destination code identifies the country or
+territory, such as NANP `+1` NPAs.
 
 `cc` defines how a country code is classified. `area` defines the national
 destination code hierarchy for countries whose type is `number`. Use

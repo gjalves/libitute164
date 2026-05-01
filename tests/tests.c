@@ -309,16 +309,24 @@ static void e164_test_load_plan_file(void **state)
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
     assert_string_equal("pt_BR", itu_t_e164_cc_2_country(55));
-    assert_string_equal("en_US", itu_t_e164_cc_2_country(1));
+    assert_null(itu_t_e164_cc_2_country(1));
     assert_string_equal("en_CA", itu_t_e164_area_2_country(1, 416));
     assert_string_equal("en_US", itu_t_e164_area_2_country(1, 469));
+    assert_null(itu_t_e164_area_2_country(1, 800));
     assert_string_equal("0", itu_t_e164_cc_2_national_prefix(55));
     assert_string_equal("00", itu_t_e164_cc_2_international_prefix(55));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "+1");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+1", buffer);
+    assert_null(itu_t_e164_get_country(&e164));
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+55");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+55", buffer);
+    assert_string_equal("pt_BR", itu_t_e164_get_country(&e164));
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+551912345678");
