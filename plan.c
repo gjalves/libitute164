@@ -423,6 +423,45 @@ int itu_t_e164_load_plan_fp(FILE *fp)
     return 0;
 }
 
+int itu_t_e164_load_plan_memory(const char *data, size_t size)
+{
+    char line[1024];
+    unsigned long line_no = 0;
+    struct plan_data plan;
+    size_t pos = 0;
+
+    plan_error[0] = 0;
+    if(data == NULL && size > 0)
+        return set_plan_error(0, "null memory pointer");
+
+    memset(&plan, 0, sizeof(plan));
+    while(pos < size) {
+        size_t line_len = 0;
+
+        line_no++;
+        while(pos < size && data[pos] != '\n') {
+            if(line_len >= sizeof(line) - 1) {
+                free_plan_data(&plan);
+                return set_plan_error(line_no, "line too long");
+            }
+            line[line_len++] = data[pos++];
+        }
+
+        if(pos < size && data[pos] == '\n')
+            pos++;
+
+        line[line_len] = 0;
+        if(parse_line(&plan, line, line_no) != 0) {
+            free_plan_data(&plan);
+            return -1;
+        }
+    }
+
+    activate_plan(&plan);
+    plan_error[0] = 0;
+    return 0;
+}
+
 int itu_t_e164_load_plan_file(const char *path)
 {
     FILE *fp;

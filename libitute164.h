@@ -124,6 +124,7 @@ enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 int itu_t_e164_load_plan_file(const char *path);
 int itu_t_e164_load_plan_fp(FILE *fp);
+int itu_t_e164_load_plan_memory(const char *data, size_t size);
 int itu_t_e164_load_default_plan(void);
 const char *itu_t_e164_plan_error(void);
 void itu_t_e164_reset_plan(void);

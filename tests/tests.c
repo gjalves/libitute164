@@ -509,6 +509,44 @@ static void e164_test_load_plan_override(void **state)
     itu_t_e164_reset_plan();
 }
 
+static void e164_test_load_plan_memory(void **state)
+{
+    (void) state;
+    static const char plan[] =
+        "cc 1 incomplete\n"
+        "cc 12 incomplete\n"
+        "cc 123 number\n"
+        "country 123 pt_BR\n"
+        "area 123 0 number\n"
+        "subscriber 123 * ^[0-9]{0,3}$ ###\n";
+    itu_t_e164_t e164;
+    char buffer[BUFSIZ];
+
+    assert_int_equal(0, itu_t_e164_load_plan_memory(plan, sizeof(plan) - 1));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_value(&e164, "+123456");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+123 456", buffer);
+    assert_string_equal("123456", e164.value);
+    assert_string_equal("pt_BR", itu_t_e164_cc_2_country(123));
+    itu_t_e164_reset_plan();
+}
+
+static void e164_test_load_plan_memory_without_nul(void **state)
+{
+    (void) state;
+    static const char plan[] =
+        "cc 1 incomplete\n"
+        "cc 12 incomplete\n"
+        "cc 123 number\n"
+        "subscriber 123 * ^[0-9]{0,3}$ ###";
+
+    assert_int_equal(0, itu_t_e164_load_plan_memory(plan, sizeof(plan) - 1));
+    assert_int_equal(ITU_T_NUMBER, itu_t_e164_cc_2_type(123));
+    itu_t_e164_reset_plan();
+}
+
 static void e164_test_load_plan_invalid_keeps_active_plan(void **state)
 {
     (void) state;
@@ -547,6 +585,32 @@ static void e164_test_load_plan_invalid_keeps_active_plan(void **state)
     itu_t_e164_set_value(&e164, "+123456");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+123 456", buffer);
+    itu_t_e164_reset_plan();
+}
+
+static void e164_test_load_plan_memory_invalid_keeps_active_plan(void **state)
+{
+    (void) state;
+    static const char valid_plan[] =
+        "cc 1 incomplete\n"
+        "cc 12 incomplete\n"
+        "cc 123 number\n"
+        "country 123 pt_BR\n"
+        "area 123 0 number\n"
+        "subscriber 123 * ^[0-9]{0,3}$ ###\n";
+    static const char invalid_plan[] = "cc 1000 number\n";
+    const char *error;
+
+    assert_int_equal(0, itu_t_e164_load_plan_memory(valid_plan, sizeof(valid_plan) - 1));
+
+    assert_int_equal(-1, itu_t_e164_load_plan_memory(invalid_plan, sizeof(invalid_plan) - 1));
+    error = itu_t_e164_plan_error();
+    assert_non_null(error);
+    assert_non_null(strstr(error, "line 1"));
+    assert_non_null(strstr(error, "invalid country code"));
+
+    assert_int_equal(ITU_T_NUMBER, itu_t_e164_cc_2_type(123));
+    assert_string_equal("pt_BR", itu_t_e164_cc_2_country(123));
     itu_t_e164_reset_plan();
 }
 
@@ -616,7 +680,10 @@ int main(void) {
         cmocka_unit_test(e164_test_context_local_and_national_input),
         cmocka_unit_test(e164_test_context_alphanumeric_input),
         cmocka_unit_test(e164_test_load_plan_override),
+        cmocka_unit_test(e164_test_load_plan_memory),
+        cmocka_unit_test(e164_test_load_plan_memory_without_nul),
         cmocka_unit_test(e164_test_load_plan_invalid_keeps_active_plan),
+        cmocka_unit_test(e164_test_load_plan_memory_invalid_keeps_active_plan),
         cmocka_unit_test(e164_test_load_default_plan_from_env),
         cmocka_unit_test(e164_test_load_plan_invalid_country_tag),
         cmocka_unit_test(e164_test_append_valid),

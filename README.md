@@ -115,6 +115,7 @@ are transactional: if parsing fails, the previously active plan remains in use.
 ```c
 int itu_t_e164_load_plan_file(const char *path);
 int itu_t_e164_load_plan_fp(FILE *fp);
+int itu_t_e164_load_plan_memory(const char *data, size_t size);
 int itu_t_e164_load_default_plan(void);
 const char *itu_t_e164_plan_error(void);
 void itu_t_e164_reset_plan(void);
