@@ -12,6 +12,7 @@ enum input_field {
     FIELD_COUNTRY,
     FIELD_AREA,
     FIELD_RESTRICTION,
+    FIELD_ALPHANUMERIC,
     FIELD_PHONE,
     FIELD_TOTAL
 };
@@ -25,6 +26,7 @@ struct input_state {
     size_t area_len;
     size_t restriction_len;
     size_t phone_len;
+    int accept_alphanumeric;
     enum input_field field;
 };
 
@@ -91,6 +93,7 @@ static void apply_context(itu_t_e164_t *e164, const struct input_state *state)
         if(context.restriction == ITU_T_E164_CONTEXT_RESTRICT_AREA && context.area_code == 0)
             context.restriction = ITU_T_E164_CONTEXT_RESTRICT_COUNTRY;
     }
+    context.accept_alphanumeric = state->accept_alphanumeric;
     itu_t_e164_set_context(e164, &context);
     itu_t_e164_set_value(e164, state->phone);
 }
@@ -115,6 +118,8 @@ static const char *field_value(const struct input_state *state, enum input_field
             return state->area;
         case FIELD_RESTRICTION:
             return state->restriction;
+        case FIELD_ALPHANUMERIC:
+            return state->accept_alphanumeric ? "sim" : "nao";
         case FIELD_PHONE:
             return state->phone;
         default:
@@ -131,6 +136,8 @@ static size_t *field_len(struct input_state *state, enum input_field field)
             return &state->area_len;
         case FIELD_RESTRICTION:
             return &state->restriction_len;
+        case FIELD_ALPHANUMERIC:
+            return &state->phone_len;
         case FIELD_PHONE:
             return &state->phone_len;
         default:
@@ -147,6 +154,8 @@ static char *field_buffer(struct input_state *state, enum input_field field)
             return state->area;
         case FIELD_RESTRICTION:
             return state->restriction;
+        case FIELD_ALPHANUMERIC:
+            return state->phone;
         case FIELD_PHONE:
             return state->phone;
         default:
@@ -163,6 +172,8 @@ static size_t field_size(enum input_field field)
             return sizeof(((struct input_state *)0)->area);
         case FIELD_RESTRICTION:
             return sizeof(((struct input_state *)0)->restriction);
+        case FIELD_ALPHANUMERIC:
+            return 0;
         case FIELD_PHONE:
             return sizeof(((struct input_state *)0)->phone);
         default:
@@ -247,12 +258,31 @@ static void draw_restriction_field(WINDOW *win, int y, const struct input_state 
         wattroff(win, A_REVERSE);
 }
 
+static void draw_toggle_field(WINDOW *win, int y, const char *label, int enabled, int active)
+{
+    mvwprintw(win, y, 2, "%s", label);
+    if(active && !enabled)
+        wattron(win, A_REVERSE);
+    mvwprintw(win, y, 18, "%s", enabled ? " nao " : "[nao]");
+    if(active && !enabled)
+        wattroff(win, A_REVERSE);
+    if(active && enabled)
+        wattron(win, A_REVERSE);
+    mvwprintw(win, y, 25, "%s", enabled ? "[sim]" : " sim ");
+    if(active && enabled)
+        wattroff(win, A_REVERSE);
+}
+
 static int field_cursor_x(const struct input_state *state)
 {
-    size_t len = *field_len((struct input_state *)state, state->field);
+    size_t len;
 
     if(state->field == FIELD_RESTRICTION)
         len = strlen(restriction_label(state->restriction));
+    else if(state->field == FIELD_ALPHANUMERIC)
+        len = strlen(field_value(state, state->field));
+    else
+        len = *field_len((struct input_state *)state, state->field);
 
     return 18 + len;
 }
@@ -299,25 +329,26 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     draw_field(win, 2, "DDI", field_value(state, FIELD_COUNTRY), state->field == FIELD_COUNTRY);
     draw_field(win, 3, "DDD", field_value(state, FIELD_AREA), state->field == FIELD_AREA);
     draw_restriction_field(win, 4, state);
+    draw_toggle_field(win, 5, "Alfanumerico", state->accept_alphanumeric, state->field == FIELD_ALPHANUMERIC);
 
     bytes = itu_t_e164_get_context_value(e164, buffer, sizeof(buffer));
-    draw_field(win, 6, "Numero", buffer, state->field == FIELD_PHONE);
+    draw_field(win, 7, "Numero", buffer, state->field == FIELD_PHONE);
 
     itu_t_e164_get_value(e164, buffer, sizeof(buffer));
-    draw_field(win, 7, "Completo", e164->pos == 0 ? "" : buffer, 0);
+    draw_field(win, 8, "Completo", e164->pos == 0 ? "" : buffer, 0);
 
     get_full_dialing_value(e164, buffer, sizeof(buffer));
-    draw_field(win, 8, "Discagem", buffer, 0);
+    draw_field(win, 9, "Discagem", buffer, 0);
 
     country = known_country(e164);
     if(country != NULL)
-        mvwprintw(win, 9, 2, "Pais: %-18s", country);
+        mvwprintw(win, 10, 2, "Pais: %-18s", country);
     else
-        mvwprintw(win, 9, 2, "%-24s", "");
+        mvwprintw(win, 10, 2, "%-24s", "");
 
-    mvwprintw(win, 9, 34, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
-    mvwprintw(win, 10, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
-    wmove(win, state->field == FIELD_PHONE ? 6 : state->field + 2, state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
+    mvwprintw(win, 10, 34, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
+    mvwprintw(win, 11, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
+    wmove(win, state->field == FIELD_PHONE ? 7 : state->field + 2, state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
     wrefresh(win);
 }
 
@@ -347,8 +378,14 @@ static int append_to_field(struct input_state *state, enum input_field field, in
 
 static void trim_field(struct input_state *state, enum input_field field)
 {
-    char *buffer = field_buffer(state, field);
-    size_t *len = field_len(state, field);
+    char *buffer;
+    size_t *len;
+
+    if(field == FIELD_ALPHANUMERIC)
+        return;
+
+    buffer = field_buffer(state, field);
+    len = field_len(state, field);
 
     if(*len == 0)
         return;
@@ -384,6 +421,14 @@ static void handle_context_key(struct input_state *state, int ch)
         return;
     }
 
+    if(state->field == FIELD_ALPHANUMERIC) {
+        if(ch == KEY_LEFT || ch == '0' || ch == 'n' || ch == 'N')
+            state->accept_alphanumeric = 0;
+        else if(ch == KEY_RIGHT || ch == ' ' || ch == '1' || ch == 's' || ch == 'S')
+            state->accept_alphanumeric = 1;
+        return;
+    }
+
     if(ch >= 0 && ch <= 255 && isdigit((unsigned char)ch))
         append_to_field(state, state->field, ch);
 }
@@ -400,6 +445,8 @@ static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int 
     } else if((ch == '+' || ch == '(') && state->phone_len == 0 && prefix_allowed(e164, ch)) {
         append_to_field(state, FIELD_PHONE, ch);
     } else if(ch >= 0 && ch <= 255 && isdigit((unsigned char)ch)) {
+        appended_digit = append_to_field(state, FIELD_PHONE, ch);
+    } else if(state->accept_alphanumeric && ch >= 0 && ch <= 255 && isalpha((unsigned char)ch)) {
         appended_digit = append_to_field(state, FIELD_PHONE, ch);
     }
 
@@ -439,7 +486,7 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
 }
 
 int main() {
-    int startx, starty, width = INPUT_WIDTH, height = 13;
+    int startx, starty, width = INPUT_WIDTH, height = 14;
     WINDOW *win;
 
     itu_t_e164_t e164;

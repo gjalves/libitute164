@@ -37,6 +37,7 @@ typedef struct {
     uint16_t country_code;
     uint32_t area_code;
     uint8_t restriction;
+    uint8_t accept_alphanumeric;
 } itu_t_e164_context_t;
 
 #define ITU_T_E164_CONTEXT_RESTRICT_NONE 0

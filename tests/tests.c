@@ -328,9 +328,9 @@ static void e164_test_context_local_and_national_input(void **state)
 {
     (void) state;
     itu_t_e164_t e164;
-    itu_t_e164_context_t open_context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE};
-    itu_t_e164_context_t country_context = {55, 0, ITU_T_E164_CONTEXT_RESTRICT_COUNTRY};
-    itu_t_e164_context_t area_context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA};
+    itu_t_e164_context_t open_context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0};
+    itu_t_e164_context_t country_context = {55, 0, ITU_T_E164_CONTEXT_RESTRICT_COUNTRY, 0};
+    itu_t_e164_context_t area_context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA, 0};
     char buffer[BUFSIZ];
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
@@ -450,6 +450,32 @@ static void e164_test_context_local_and_national_input(void **state)
     itu_t_e164_get_context_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("", buffer);
     assert_string_equal("", e164.value);
+
+    itu_t_e164_reset_plan();
+}
+
+static void e164_test_context_alphanumeric_input(void **state)
+{
+    (void) state;
+    itu_t_e164_t e164;
+    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA, 1};
+    char buffer[BUFSIZ];
+
+    assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &context);
+    itu_t_e164_set_value(&e164, "9FLOWERS");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 93569-377", buffer);
+    assert_string_equal("551993569377", e164.value);
+
+    context.accept_alphanumeric = 0;
+    itu_t_e164_set_context(&e164, &context);
+    itu_t_e164_set_value(&e164, "9FLOWERS");
+    itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("+55 (19) 9", buffer);
+    assert_string_equal("55199", e164.value);
 
     itu_t_e164_reset_plan();
 }
@@ -588,6 +614,7 @@ int main(void) {
         cmocka_unit_test(e164_test_set_null_value),
         cmocka_unit_test(e164_test_load_plan_file),
         cmocka_unit_test(e164_test_context_local_and_national_input),
+        cmocka_unit_test(e164_test_context_alphanumeric_input),
         cmocka_unit_test(e164_test_load_plan_override),
         cmocka_unit_test(e164_test_load_plan_invalid_keeps_active_plan),
         cmocka_unit_test(e164_test_load_default_plan_from_env),

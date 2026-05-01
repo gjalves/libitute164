@@ -80,6 +80,22 @@ static size_t append_number(char *digits, size_t size, size_t pos, unsigned long
     return append_digits(digits, size, pos, buffer);
 }
 
+static char alpha_to_digit(int ch)
+{
+    ch = toupper((unsigned char)ch);
+
+    if(ch >= 'A' && ch <= 'C') return '2';
+    if(ch >= 'D' && ch <= 'F') return '3';
+    if(ch >= 'G' && ch <= 'I') return '4';
+    if(ch >= 'J' && ch <= 'L') return '5';
+    if(ch >= 'M' && ch <= 'O') return '6';
+    if(ch >= 'P' && ch <= 'S') return '7';
+    if(ch >= 'T' && ch <= 'V') return '8';
+    if(ch >= 'W' && ch <= 'Z') return '9';
+
+    return 0;
+}
+
 static int input_has_explicit_country(const itu_t_e164_t *e164, const char *value, int explicit_international)
 {
     char country[8];
@@ -369,6 +385,8 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     while(*p && pos < sizeof(digits) - 1) {
         if(isdigit((unsigned char)*p))
             input[pos++] = *p;
+        else if(e164->context.accept_alphanumeric && isalpha((unsigned char)*p))
+            input[pos++] = alpha_to_digit(*p);
         p++;
     }
     input[pos] = 0;

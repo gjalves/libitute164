@@ -147,7 +147,7 @@ Default locality is application context, not numbering-plan data. Set it on an
 `itu_t_e164_t` instance to accept national or local input without `+`:
 
 ```c
-itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA};
+itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA, 0};
 
 itu_t_e164_set_context(&e164, &context);
 itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */
@@ -161,6 +161,10 @@ used for local input, but explicit `+` and `(` input remains visible.
 `ITU_T_E164_CONTEXT_RESTRICT_COUNTRY` accepts only the context country and hides
 that country in the context value. `ITU_T_E164_CONTEXT_RESTRICT_AREA` accepts
 only the context country and area, hiding both in the context value.
+
+Set `context.accept_alphanumeric` to a non-zero value to accept letters in
+input strings. Letters are translated to telephone keypad digits before the
+number is normalized, for example `FLOWERS` becomes `3569377`.
 
 The repository includes `data/e164-plan.txt` and a validator:
 
