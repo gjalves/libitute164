@@ -69,6 +69,7 @@ static void configure_context(itu_t_e164_t *e164)
 {
     char country[8];
     char area[8];
+    char mode[8];
     itu_t_e164_context_t context;
 
     clear();
@@ -81,6 +82,8 @@ static void configure_context(itu_t_e164_t *e164)
     if(context.country_code != 0) {
         read_context_field(5, "DDD", area, sizeof(area));
         context.area_code = parse_number(area);
+        read_context_field(6, "Exibir 0=completo 1=sem DDI 2=local", mode, sizeof(mode));
+        context.presentation = parse_number(mode);
     }
     itu_t_e164_set_context(e164, &context);
     clear();
@@ -108,6 +111,9 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
             // Apagar o último caractere
             if(input_len > 0)
                 input[--input_len] = 0;
+        } else if ((ch == '+' || ch == '(') && input_len == 0) {
+            input[input_len++] = ch;
+            input[input_len] = 0;
         } else if (isdigit(ch)) {
             if(input_len < sizeof(input) - 1) {
                 input[input_len++] = ch;
@@ -122,7 +128,7 @@ void get_phone_number(WINDOW *win, int y, int x, itu_t_e164_t *e164) {
 }
 
 int main() {
-    int startx, starty, width = INPUT_WIDTH, height = 7;
+    int startx, starty, width = INPUT_WIDTH, height = 8;
     WINDOW *win;
 
     itu_t_e164_t e164;

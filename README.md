@@ -149,15 +149,19 @@ Default locality is application context, not numbering-plan data. Set it on an
 ```c
 itu_t_e164_context_t context = {55, 19};
 
+context.presentation = ITU_T_E164_CONTEXT_PRESENT_AREA;
 itu_t_e164_set_context(&e164, &context);
 itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */
 itu_t_e164_set_value(&e164, "019912345678"); /* +55 (19) 91234-5678 */
 ```
 
 `itu_t_e164_get_value()` returns the complete international value.
-`itu_t_e164_get_context_value()` hides country or area codes inferred from the
-context, while keeping explicit user input visible. Explicit international
-values starting with `+` are not changed by the context.
+`itu_t_e164_get_context_value()` applies `context.presentation`:
+`ITU_T_E164_CONTEXT_PRESENT_COMPLETE` keeps the full value,
+`ITU_T_E164_CONTEXT_PRESENT_COUNTRY` hides a country code inferred from the
+context, and `ITU_T_E164_CONTEXT_PRESENT_AREA` also hides an area code inferred
+from the context. Explicit user input remains visible: `+` forces an
+international presentation and `(` forces an area presentation.
 
 The repository includes `data/e164-plan.txt` and a validator:
 

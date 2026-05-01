@@ -17,14 +17,14 @@ void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *cont
 {
     if(context == NULL) {
         memset(&e164->context, 0, sizeof(e164->context));
-        e164->context_country_implicit = 0;
-        e164->context_area_implicit = 0;
+        e164->input_country_explicit = 0;
+        e164->input_area_explicit = 0;
         return;
     }
 
     e164->context = *context;
-    e164->context_country_implicit = 0;
-    e164->context_area_implicit = 0;
+    e164->input_country_explicit = 0;
+    e164->input_area_explicit = 0;
 }
 
 static ssize_t appendf(char *buffer, ssize_t size, ssize_t pos, const char *fmt, ...)
@@ -80,10 +80,13 @@ static size_t append_number(char *digits, size_t size, size_t pos, unsigned long
     return append_digits(digits, size, pos, buffer);
 }
 
-static int input_has_explicit_country(const itu_t_e164_t *e164, const char *value)
+static int input_has_explicit_country(const itu_t_e164_t *e164, const char *value, int explicit_international)
 {
     char country[8];
     const char *prefix;
+
+    if(explicit_international)
+        return 1;
 
     if(e164->context.country_code == 0)
         return 1;
@@ -96,10 +99,13 @@ static int input_has_explicit_country(const itu_t_e164_t *e164, const char *valu
     return starts_with(value, country);
 }
 
-static int input_has_explicit_area(const itu_t_e164_t *e164, const char *value)
+static int input_has_explicit_area(const itu_t_e164_t *e164, const char *value, int explicit_area)
 {
     char area[16];
     const char *prefix;
+
+    if(explicit_area)
+        return 1;
 
     if(e164->context.area_code == 0)
         return 1;
@@ -115,19 +121,16 @@ static int input_has_explicit_area(const itu_t_e164_t *e164, const char *value)
     return 0;
 }
 
-static void update_context_flags(itu_t_e164_t *e164, const char *value, int explicit_international)
+static void update_input_flags(itu_t_e164_t *e164, const char *value, int explicit_international, int explicit_area)
 {
-    e164->context_country_implicit = 0;
-    e164->context_area_implicit = 0;
+    e164->input_country_explicit = 0;
+    e164->input_area_explicit = 0;
 
-    if(explicit_international || value[0] == 0 || e164->context.country_code == 0)
+    if(value[0] == 0)
         return;
 
-    if(!input_has_explicit_country(e164, value)) {
-        e164->context_country_implicit = 1;
-        if(e164->context.area_code != 0 && !input_has_explicit_area(e164, value))
-            e164->context_area_implicit = 1;
-    }
+    e164->input_country_explicit = input_has_explicit_country(e164, value, explicit_international);
+    e164->input_area_explicit = input_has_explicit_area(e164, value, explicit_area);
 }
 
 static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size)
@@ -327,11 +330,13 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 {
     const char *p;
     itu_t_e164_context_t context;
-    uint8_t context_country_implicit;
-    uint8_t context_area_implicit;
+    uint8_t input_country_explicit;
+    uint8_t input_area_explicit;
     char input[sizeof(e164->value)];
     char digits[sizeof(e164->value)];
     size_t pos = 0;
+    int explicit_international;
+    int explicit_area;
 
     if(value == NULL) {
         context = e164->context;
@@ -340,10 +345,12 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
         return;
     }
 
-    if(value[0] == '+')
+    explicit_international = value[0] == '+';
+    explicit_area = value[0] == '(';
+
+    if(explicit_international || explicit_area)
         p = &value[1];
-    else
-        p = value;
+    else p = value;
 
     while(*p && pos < sizeof(digits) - 1) {
         if(isdigit((unsigned char)*p))
@@ -353,18 +360,18 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     input[pos] = 0;
 
     context = e164->context;
-    update_context_flags(e164, input, value[0] == '+');
-    context_country_implicit = e164->context_country_implicit;
-    context_area_implicit = e164->context_area_implicit;
-    if(value[0] == '+')
+    update_input_flags(e164, input, explicit_international, explicit_area);
+    input_country_explicit = e164->input_country_explicit;
+    input_area_explicit = e164->input_area_explicit;
+    if(explicit_international)
         memcpy(digits, input, pos + 1);
     else
         normalize_context_digits(e164, input, digits, sizeof(digits));
 
     itu_t_e164_init(e164);
     e164->context = context;
-    e164->context_country_implicit = context_country_implicit;
-    e164->context_area_implicit = context_area_implicit;
+    e164->input_country_explicit = input_country_explicit;
+    e164->input_area_explicit = input_area_explicit;
     memcpy(e164->value, digits, strlen(digits) + 1);
     e164->pos = strlen(digits);
     itu_t_e164_update(e164);
@@ -433,6 +440,7 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     char full[BUFSIZ];
     const char *display = full;
     char prefix[24];
+    uint8_t presentation;
 
     if(size <= 0) return 0;
     if(e164->pos == 0) {
@@ -441,8 +449,11 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     }
 
     itu_t_e164_get_value(e164, full, sizeof(full));
+    presentation = e164->context.presentation;
 
-    if(e164->context_country_implicit) {
+    if(presentation >= ITU_T_E164_CONTEXT_PRESENT_COUNTRY &&
+       e164->context.country_code != 0 &&
+       !e164->input_country_explicit) {
         snprintf(prefix, sizeof(prefix), "+%lu", (unsigned long)e164->context.country_code);
         if(starts_with(display, prefix)) {
             display += strlen(prefix);
@@ -451,7 +462,9 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
         }
     }
 
-    if(e164->context_area_implicit) {
+    if(presentation >= ITU_T_E164_CONTEXT_PRESENT_AREA &&
+       e164->context.area_code != 0 &&
+       !e164->input_area_explicit) {
         snprintf(prefix, sizeof(prefix), "(%lu)", (unsigned long)e164->context.area_code);
         if(starts_with(display, prefix)) {
             display += strlen(prefix);

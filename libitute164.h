@@ -36,7 +36,12 @@ typedef struct {
 typedef struct {
     uint16_t country_code;
     uint32_t area_code;
+    uint8_t presentation;
 } itu_t_e164_context_t;
+
+#define ITU_T_E164_CONTEXT_PRESENT_COMPLETE 0
+#define ITU_T_E164_CONTEXT_PRESENT_COUNTRY 1
+#define ITU_T_E164_CONTEXT_PRESENT_AREA 2
 
 typedef struct {
     int pos;
@@ -46,8 +51,8 @@ typedef struct {
     enum itu_t_e123_type_enum e123_type;
     itu_t_e164_cc_t cc;
     itu_t_e164_context_t context;
-    uint8_t context_country_implicit;
-    uint8_t context_area_implicit;
+    uint8_t input_country_explicit;
+    uint8_t input_area_explicit;
 
     union {
         // ITU_T_NUMBER,
