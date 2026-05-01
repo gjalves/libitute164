@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>libitute164 JavaScript Demo</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>libitute164</h1>
+
+        <div class="grid">
+          <label>
+            DDI
+            <input id="country" inputmode="numeric" value="55">
+          </label>
+
+          <label>
+            DDD
+            <input id="area" inputmode="numeric" value="19">
+          </label>
+
+          <label>
+            Restriction
+            <select id="restriction">
+              <option value="0">Open</option>
+              <option value="1">Country</option>
+              <option value="2" selected>Area</option>
+            </select>
+          </label>
+
+          <label class="check">
+            <input id="alphanumeric" type="checkbox">
+            Alphanumeric
+          </label>
+        </div>
+
+        <label>
+          Number
+          <input id="number" inputmode="tel" autocomplete="tel" value="912345678" autofocus>
+        </label>
+
+        <dl>
+          <div>
+            <dt>Raw</dt>
+            <dd id="raw"></dd>
+          </div>
+          <div>
+            <dt>Full</dt>
+            <dd id="full"></dd>
+          </div>
+          <div>
+            <dt>Context</dt>
+            <dd id="context"></dd>
+          </div>
+          <div>
+            <dt>Country</dt>
+            <dd id="detected-country"></dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd id="status"></dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

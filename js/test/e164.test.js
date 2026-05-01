@@ -38,6 +38,14 @@ describe("E164Plan", () => {
     assert.throws(() => plan.loadText("country 55 pt-BR\n"), /invalid country tag/);
     assert.equal(plan.ccToCountry(55), "pt_BR");
   });
+
+  it("rejects unknown directives transactionally", () => {
+    const plan = new E164Plan();
+    plan.loadText("cc 55 number\ncountry 55 pt_BR\n");
+
+    assert.throws(() => plan.loadText("cc 55 number\nbogus 55\n"), /unknown directive/);
+    assert.equal(plan.ccToCountry(55), "pt_BR");
+  });
 });
 
 describe("E164Number", () => {
@@ -55,6 +63,45 @@ describe("E164Number", () => {
 
     phone.setValue("+59812345678");
     assert.equal(phone.getValue(), "+598 1 234 5678");
+  });
+
+  it("handles countries without subscriber masks", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan);
+
+    phone.setValue("+31123456");
+    assert.equal(phone.getValue(), "+31 123456");
+    assert.equal(phone.value, "31123456");
+    assert.equal(phone.getCountry(), "nl_NL");
+  });
+
+  it("clears values without clearing context", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan, {
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_AREA,
+    });
+
+    phone.setValue("912345678");
+    assert.equal(phone.value, "5519912345678");
+
+    phone.setValue(null);
+    assert.equal(phone.value, "");
+    assert.equal(phone.getContextValue(), "");
+
+    phone.setValue("912345678");
+    assert.equal(phone.value, "5519912345678");
+    assert.equal(phone.getContextValue(), "91234-5678");
+  });
+
+  it("truncates long input to the accepted prefix", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan);
+
+    phone.setValue("+551912345678999999");
+    assert.equal(phone.value, "551912345678");
+    assert.equal(phone.getValue(), "+55 (19) 1234-5678");
   });
 
   it("resolves NANP countries by area code, not country code fallback", () => {
@@ -133,5 +180,10 @@ describe("E164Number", () => {
 
     phone.delDigit();
     assert.equal(phone.getValue(), "+55 (19) 1234-567");
+
+    while (phone.delDigit()) {}
+    assert.equal(phone.value, "");
+    assert.equal(phone.getValue(), "+");
+    assert.equal(phone.delDigit(), false);
   });
 });

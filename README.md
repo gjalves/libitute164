@@ -52,6 +52,33 @@ cd js
 npm test
 ```
 
+The browser demo in `js/demo/` loads `data/e164-plan.txt` with `fetch`, so it
+must be served over HTTP:
+
+```sh
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000/js/demo/`.
+
+### JavaScript API
+
+`E164Plan.fromText(text)` parses the external numbering plan and returns an
+`E164Plan`. `plan.loadText(text)` replaces an existing plan transactionally:
+if parsing fails, the previous plan remains active. Lookup helpers include
+`ccToType(countryCode)`, `areaToType(countryCode, areaCode)`,
+`ccToCountry(countryCode)`, `areaToCountry(countryCode, areaCode)`,
+`nationalPrefix(countryCode)`, and `internationalPrefix(countryCode)`.
+
+`new E164Number(plan, context)` creates a number bound to a plan. The context
+fields are `countryCode`, `areaCode`, `restriction`, and
+`acceptAlphanumeric`. Use `RESTRICT_NONE`, `RESTRICT_COUNTRY`, and
+`RESTRICT_AREA` for the restriction value.
+
+`E164Number` exposes the normalized digits in `phone.value` and provides
+`setValue(value)`, `setContext(context)`, `getValue()`, `getContextValue()`,
+`getCountry()`, `isComplete()`, `addDigit(digit)`, and `delDigit()`.
+
 ## Data Structures
 
 ### `itu_t_e164_t`
