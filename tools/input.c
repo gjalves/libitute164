@@ -317,6 +317,54 @@ static void get_full_dialing_value(itu_t_e164_t *e164, char *buffer, size_t size
     snprintf(buffer, size, "+%s", e164->value);
 }
 
+static char alpha_to_phone_digit(int ch)
+{
+    ch = toupper((unsigned char)ch);
+
+    if(ch >= 'A' && ch <= 'C') return '2';
+    if(ch >= 'D' && ch <= 'F') return '3';
+    if(ch >= 'G' && ch <= 'I') return '4';
+    if(ch >= 'J' && ch <= 'L') return '5';
+    if(ch >= 'M' && ch <= 'O') return '6';
+    if(ch >= 'P' && ch <= 'S') return '7';
+    if(ch >= 'T' && ch <= 'V') return '8';
+    if(ch >= 'W' && ch <= 'Z') return '9';
+
+    return 0;
+}
+
+static ssize_t get_display_phone_value(const struct input_state *state, itu_t_e164_t *e164, char *buffer, ssize_t size)
+{
+    itu_t_e164_t display_e164;
+    char display_value[sizeof(e164->value)];
+    int value_pos;
+    int phone_pos;
+
+    if(!state->accept_alphanumeric)
+        return itu_t_e164_get_context_value(e164, buffer, size);
+
+    display_e164 = *e164;
+    snprintf(display_value, sizeof(display_value), "%s", e164->value);
+    value_pos = strlen(display_value) - 1;
+
+    for(phone_pos = state->phone_len - 1; phone_pos >= 0 && value_pos >= 0; phone_pos--) {
+        unsigned char ch = (unsigned char)state->phone[phone_pos];
+
+        if(isdigit(ch)) {
+            value_pos--;
+        } else if(isalpha(ch)) {
+            char digit = alpha_to_phone_digit(ch);
+
+            if(digit == display_value[value_pos])
+                display_value[value_pos] = toupper(ch);
+            value_pos--;
+        }
+    }
+
+    snprintf(display_e164.value, sizeof(display_e164.value), "%s", display_value);
+    return itu_t_e164_get_context_value(&display_e164, buffer, size);
+}
+
 static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t *e164)
 {
     const char *country;
@@ -331,7 +379,7 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     draw_restriction_field(win, 4, state);
     draw_toggle_field(win, 5, "Alfanumerico", state->accept_alphanumeric, state->field == FIELD_ALPHANUMERIC);
 
-    bytes = itu_t_e164_get_context_value(e164, buffer, sizeof(buffer));
+    bytes = get_display_phone_value(state, e164, buffer, sizeof(buffer));
     draw_field(win, 7, "Numero", buffer, state->field == FIELD_PHONE);
 
     itu_t_e164_get_value(e164, buffer, sizeof(buffer));
