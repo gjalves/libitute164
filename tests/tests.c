@@ -520,6 +520,49 @@ static void e164_test_context_alphanumeric_input(void **state)
     itu_t_e164_reset_plan();
 }
 
+static void e164_test_dialing_input_mode(void **state)
+{
+    (void) state;
+    itu_t_e164_t e164;
+    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0, ITU_T_E164_INPUT_MODE_DIALING};
+    char buffer[BUFSIZ];
+
+    assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &context);
+
+    itu_t_e164_set_value(&e164, "912345678");
+    assert_string_equal("5519912345678", e164.value);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("912345678", buffer);
+
+    itu_t_e164_set_value(&e164, "019912345678");
+    assert_string_equal("5519912345678", e164.value);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("912345678", buffer);
+
+    itu_t_e164_set_value(&e164, "19912345678");
+    assert_string_equal("", e164.value);
+
+    itu_t_e164_set_value(&e164, "00551912345678");
+    assert_string_equal("551912345678", e164.value);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("12345678", buffer);
+
+    itu_t_e164_set_value(&e164, "08000101010");
+    assert_string_equal("558000101010", e164.value);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("08000101010", buffer);
+
+    context.area_code = 0;
+    itu_t_e164_set_context(&e164, &context);
+    itu_t_e164_set_value(&e164, "912345678");
+    assert_string_equal("", e164.value);
+
+    itu_t_e164_reset_plan();
+}
+
 static void e164_test_load_plan_override(void **state)
 {
     (void) state;
@@ -747,6 +790,7 @@ int main(void) {
         cmocka_unit_test(e164_test_load_plan_file),
         cmocka_unit_test(e164_test_context_local_and_national_input),
         cmocka_unit_test(e164_test_context_alphanumeric_input),
+        cmocka_unit_test(e164_test_dialing_input_mode),
         cmocka_unit_test(e164_test_load_plan_override),
         cmocka_unit_test(e164_test_load_plan_memory),
         cmocka_unit_test(e164_test_area_country_override),

@@ -1,5 +1,7 @@
 import {
   E164Number,
+  INPUT_MODE_DIALING,
+  INPUT_MODE_NUMBER,
   NUMBER_KIND_UNKNOWN,
   RESTRICT_AREA,
   RESTRICT_COUNTRY,
@@ -7,6 +9,7 @@ import {
 } from "./index.js";
 
 const restrictions = new Set([RESTRICT_NONE, RESTRICT_COUNTRY, RESTRICT_AREA]);
+const inputModes = new Set([INPUT_MODE_NUMBER, INPUT_MODE_DIALING]);
 
 const template = document.createElement("template");
 template.innerHTML = `
@@ -114,6 +117,14 @@ template.innerHTML = `
     </label>
 
     <label>
+      Mode
+      <select id="mode">
+        <option value="0">Number</option>
+        <option value="1">Dialing</option>
+      </select>
+    </label>
+
+    <label>
       Restriction
       <select id="restriction">
         <option value="0">Open</option>
@@ -147,6 +158,10 @@ template.innerHTML = `
       <dd id="context"></dd>
     </div>
     <div>
+      <dt>Dialing</dt>
+      <dd id="dialing"></dd>
+    </div>
+    <div>
       <dt>Country</dt>
       <dd id="detected-country"></dd>
     </div>
@@ -178,8 +193,18 @@ function restrictionToAttribute(value) {
   return "none";
 }
 
+function modeFromAttribute(value) {
+  if (value === "dialing") return INPUT_MODE_DIALING;
+  if (/^[0-1]$/.test(value || "")) return Number(value);
+  return INPUT_MODE_NUMBER;
+}
+
+function modeToAttribute(value) {
+  return value === INPUT_MODE_DIALING ? "dialing" : "number";
+}
+
 export class Itute164InputElement extends HTMLElement {
-  static observedAttributes = ["country-code", "area-code", "restriction", "accept-alphanumeric", "value", "show-details"];
+  static observedAttributes = ["country-code", "area-code", "restriction", "input-mode", "accept-alphanumeric", "value", "show-details"];
 
   constructor() {
     super();
@@ -189,12 +214,14 @@ export class Itute164InputElement extends HTMLElement {
     this.fields = {
       country: this.shadowRoot.querySelector("#country"),
       area: this.shadowRoot.querySelector("#area"),
+      mode: this.shadowRoot.querySelector("#mode"),
       restriction: this.shadowRoot.querySelector("#restriction"),
       alphanumeric: this.shadowRoot.querySelector("#alphanumeric"),
       number: this.shadowRoot.querySelector("#number"),
       raw: this.shadowRoot.querySelector("#raw"),
       full: this.shadowRoot.querySelector("#full"),
       context: this.shadowRoot.querySelector("#context"),
+      dialing: this.shadowRoot.querySelector("#dialing"),
       detectedCountry: this.shadowRoot.querySelector("#detected-country"),
       kind: this.shadowRoot.querySelector("#kind"),
       status: this.shadowRoot.querySelector("#status"),
@@ -210,7 +237,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.number.addEventListener("beforeinput", this);
     this.fields.number.addEventListener("keydown", this);
     this.fields.number.addEventListener("focus", this);
-    for (const input of [this.fields.country, this.fields.area, this.fields.restriction, this.fields.alphanumeric])
+    for (const input of [this.fields.country, this.fields.area, this.fields.mode, this.fields.restriction, this.fields.alphanumeric])
       input.addEventListener("input", this);
 
     this.syncFromAttributes();
@@ -221,7 +248,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.number.removeEventListener("beforeinput", this);
     this.fields.number.removeEventListener("keydown", this);
     this.fields.number.removeEventListener("focus", this);
-    for (const input of [this.fields.country, this.fields.area, this.fields.restriction, this.fields.alphanumeric])
+    for (const input of [this.fields.country, this.fields.area, this.fields.mode, this.fields.restriction, this.fields.alphanumeric])
       input.removeEventListener("input", this);
   }
 
@@ -276,6 +303,17 @@ export class Itute164InputElement extends HTMLElement {
 
   get restriction() {
     return restrictionFromAttribute(this.fields.restriction.value);
+  }
+
+  get inputMode() {
+    return modeFromAttribute(this.fields.mode.value);
+  }
+
+  set inputMode(value) {
+    const mode = modeFromAttribute(String(value));
+    this.fields.mode.value = String(mode);
+    this.syncAttribute("input-mode", modeToAttribute(mode));
+    this.rebuildFromContext();
   }
 
   set restriction(value) {
@@ -350,6 +388,7 @@ export class Itute164InputElement extends HTMLElement {
   syncFromAttributes() {
     this.fields.country.value = this.getAttribute("country-code") || "";
     this.fields.area.value = this.getAttribute("area-code") || "";
+    this.fields.mode.value = String(modeFromAttribute(this.getAttribute("input-mode")));
     this.fields.restriction.value = String(restrictionFromAttribute(this.getAttribute("restriction")));
     this.fields.alphanumeric.checked = this.hasAttribute("accept-alphanumeric");
     this._phoneInput = this.getAttribute("value") || this._phoneInput || "";
@@ -372,6 +411,7 @@ export class Itute164InputElement extends HTMLElement {
   syncContextAttributes() {
     this.syncAttribute("country-code", this.fields.country.value);
     this.syncAttribute("area-code", this.fields.area.value);
+    this.syncAttribute("input-mode", modeToAttribute(modeFromAttribute(this.fields.mode.value)));
     this.syncAttribute("restriction", restrictionToAttribute(restrictionFromAttribute(this.fields.restriction.value)));
     this.syncBooleanAttribute("accept-alphanumeric", this.fields.alphanumeric.checked);
   }
@@ -382,22 +422,27 @@ export class Itute164InputElement extends HTMLElement {
     const countryCode = parseNumber(this.fields.country.value);
     const areaCode = countryCode === 0 ? 0 : parseNumber(this.fields.area.value);
     let restriction = restrictionFromAttribute(this.fields.restriction.value);
+    let inputMode = modeFromAttribute(this.fields.mode.value);
 
     if (!restrictions.has(restriction) || countryCode === 0)
       restriction = RESTRICT_NONE;
     else if (restriction === RESTRICT_AREA && areaCode === 0)
       restriction = RESTRICT_COUNTRY;
+    if (!inputModes.has(inputMode))
+      inputMode = INPUT_MODE_NUMBER;
 
     this._phone.setContext({
       countryCode,
       areaCode,
       restriction,
       acceptAlphanumeric: this.fields.alphanumeric.checked,
+      inputMode,
     });
   }
 
   prefixAllowed(ch) {
     if (!this._phone) return false;
+    if (this._phone.context.inputMode === INPUT_MODE_DIALING) return false;
     if (ch === "+") return this._phone.context.restriction === RESTRICT_NONE;
     if (ch === "(") return this._phone.context.restriction < RESTRICT_AREA;
     return false;
@@ -481,6 +526,7 @@ export class Itute164InputElement extends HTMLElement {
       rawValue: this._phoneInput,
       displayValue: this._phone?.getValue() || "",
       contextValue: this._phone?.getContextValue() || "",
+      dialingValue: this._phone?.getDialingValue() || "",
       country: this.country,
       kind: this.numberKind,
       complete: this.complete,
@@ -494,6 +540,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.raw.textContent = value || "-";
     this.fields.full.textContent = this._phone?.pos === 0 ? "" : this._phone.getValue();
     this.fields.context.textContent = this._phone?.getContextValue() || "";
+    this.fields.dialing.textContent = this._phone?.getDialingValue() || "";
     this.fields.detectedCountry.textContent = this.country || "unknown";
     this.fields.kind.textContent = this.numberKind;
     this.fields.status.textContent = this.complete ? "complete" : "incomplete";

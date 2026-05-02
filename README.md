@@ -26,7 +26,7 @@ explicit `E164Plan` instance, so browser applications can fetch or bundle the
 plan text themselves:
 
 ```js
-import { E164Number, E164Plan, RESTRICT_AREA } from "@itute164/e164";
+import { E164Number, E164Plan, INPUT_MODE_NUMBER, RESTRICT_AREA } from "@itute164/e164";
 
 const planText = await fetch("/e164-plan.txt").then((response) => response.text());
 const plan = E164Plan.fromText(planText);
@@ -36,12 +36,14 @@ const phone = new E164Number(plan, {
   areaCode: 19,
   restriction: RESTRICT_AREA,
   acceptAlphanumeric: true,
+  inputMode: INPUT_MODE_NUMBER,
 });
 
 phone.setValue("912345678");
 phone.value;             // "5519912345678"
 phone.getValue();        // "+55 (19) 91234-5678"
 phone.getContextValue(); // "91234-5678"
+phone.getDialingValue(); // "912345678"
 phone.getCountry();      // "pt_BR"
 ```
 
@@ -85,13 +87,16 @@ if parsing fails, the previous plan remains active. Lookup helpers include
 `nationalPrefix(countryCode)`, and `internationalPrefix(countryCode)`.
 
 `new E164Number(plan, context)` creates a number bound to a plan. The context
-fields are `countryCode`, `areaCode`, `restriction`, and
-`acceptAlphanumeric`. Use `RESTRICT_NONE`, `RESTRICT_COUNTRY`, and
-`RESTRICT_AREA` for the restriction value.
+fields are `countryCode`, `areaCode`, `restriction`, `acceptAlphanumeric`, and
+`inputMode`. Use `RESTRICT_NONE`, `RESTRICT_COUNTRY`, and `RESTRICT_AREA` for
+the restriction value. Use `INPUT_MODE_NUMBER` for logical number entry and
+`INPUT_MODE_DIALING` for dial-string entry from a known origin; dialing mode
+requires both `countryCode` and `areaCode`.
 
 `E164Number` exposes the normalized digits in `phone.value` and provides
 `setValue(value)`, `setContext(context)`, `getValue()`, `getContextValue()`,
-`getCountry()`, `isComplete()`, `addDigit(digit)`, and `delDigit()`.
+`getDialingValue()`, `getCountry()`, `isComplete()`, `addDigit(digit)`, and
+`delDigit()`.
 
 ## Data Structures
 
@@ -162,6 +167,7 @@ void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *cont
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
+ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
 int itu_t_e164_del_digit(itu_t_e164_t *e164);
 ```

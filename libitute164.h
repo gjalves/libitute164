@@ -48,11 +48,15 @@ typedef struct {
     uint32_t area_code;
     uint8_t restriction;
     uint8_t accept_alphanumeric;
+    uint8_t input_mode;
 } itu_t_e164_context_t;
 
 #define ITU_T_E164_CONTEXT_RESTRICT_NONE 0
 #define ITU_T_E164_CONTEXT_RESTRICT_COUNTRY 1
 #define ITU_T_E164_CONTEXT_RESTRICT_AREA 2
+
+#define ITU_T_E164_INPUT_MODE_NUMBER 0
+#define ITU_T_E164_INPUT_MODE_DIALING 1
 
 typedef struct {
     int pos;
@@ -149,5 +153,6 @@ void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *cont
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
+ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
 int itu_t_e164_del_digit(itu_t_e164_t *e164);

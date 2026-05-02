@@ -16,6 +16,9 @@ export const RESTRICT_NONE = 0;
 export const RESTRICT_COUNTRY = 1;
 export const RESTRICT_AREA = 2;
 
+export const INPUT_MODE_NUMBER = 0;
+export const INPUT_MODE_DIALING = 1;
+
 export const NUMBER_KIND_UNKNOWN = "unknown";
 export const NUMBER_KIND_REGULAR = "regular";
 export const NUMBER_KIND_TOLL_FREE = "toll-free";
@@ -298,24 +301,26 @@ export class E164Number {
     this.rawPhone = 0;
     this.cc = { type: CC_UNKNOWN, len: 0, value: 0 };
     this.number = { type: AREA_UNKNOWN, ndcLen: 0, ndc: 0, snLen: 0, sn: 0, mask: null, kind: NUMBER_KIND_UNKNOWN };
-    this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false };
+    this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER };
     this.inputCountryExplicit = false;
     this.inputAreaExplicit = false;
   }
 
   setContext(context) {
     if (!context) {
-      this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false };
+      this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER };
       this.inputCountryExplicit = false;
       this.inputAreaExplicit = false;
       return;
     }
 
+    const inputMode = Number(context.inputMode ?? context.input_mode ?? INPUT_MODE_NUMBER);
     this.context = {
       countryCode: Number(context.countryCode || context.country_code || 0),
       areaCode: Number(context.areaCode || context.area_code || 0),
       restriction: Number(context.restriction || RESTRICT_NONE),
       acceptAlphanumeric: Boolean(context.acceptAlphanumeric ?? context.accept_alphanumeric),
+      inputMode: inputMode === INPUT_MODE_DIALING ? INPUT_MODE_DIALING : INPUT_MODE_NUMBER,
     };
     this.inputCountryExplicit = false;
     this.inputAreaExplicit = false;
@@ -343,7 +348,9 @@ export class E164Number {
     this.updateInputFlags(input, explicitInternational, explicitArea);
     const inputCountryExplicit = this.inputCountryExplicit;
     const inputAreaExplicit = this.inputAreaExplicit;
-    const digits = explicitInternational ? input : this.normalizeContextDigits(input, explicitArea);
+    const digits = this.context.inputMode === INPUT_MODE_DIALING
+      ? this.normalizeDialingDigits(input)
+      : (explicitInternational ? input : this.normalizeContextDigits(input, explicitArea));
 
     this.init();
     this.context = context;
@@ -416,6 +423,23 @@ export class E164Number {
     }
 
     return digits + value;
+  }
+
+  normalizeDialingDigits(value) {
+    if (value.length === 0) return "";
+    if (this.context.countryCode === 0 || this.context.areaCode === 0) return "";
+
+    const internationalPrefix = this.plan.internationalPrefix(this.context.countryCode);
+    if (startsWith(value, internationalPrefix)) return value.slice(internationalPrefix.length);
+
+    const country = appendNumber(this.context.countryCode);
+    const nationalPrefix = this.plan.nationalPrefix(this.context.countryCode);
+    if (startsWith(value, nationalPrefix)) return country + value.slice(nationalPrefix.length);
+
+    const area = appendNumber(this.context.areaCode);
+    if (startsWith(value, area)) return "";
+
+    return country + area + value;
   }
 
   truncate(pos) {
@@ -587,6 +611,34 @@ export class E164Number {
     }
 
     return display;
+  }
+
+  getDialingValue() {
+    if (this.pos === 0) return "";
+
+    if (
+      this.context.countryCode !== 0 &&
+      this.context.areaCode !== 0 &&
+      this.cc.value === this.context.countryCode
+    ) {
+      if (
+        this.number.ndcLen > 0 &&
+        this.number.ndc === this.context.areaCode &&
+        this.numberUsesAreaParentheses()
+      ) {
+        return this.value.slice(this.cc.len + this.number.ndcLen);
+      }
+
+      const nationalPrefix = this.plan.nationalPrefix(this.cc.value);
+      if (nationalPrefix) return `${nationalPrefix}${this.value.slice(this.cc.len)}`;
+    }
+
+    if (this.context.countryCode !== 0) {
+      const internationalPrefix = this.plan.internationalPrefix(this.context.countryCode);
+      if (internationalPrefix) return `${internationalPrefix}${this.value}`;
+    }
+
+    return `+${this.value}`;
   }
 
   getCountry() {

@@ -23,6 +23,8 @@ void itu_t_e164_set_context(itu_t_e164_t *e164, const itu_t_e164_context_t *cont
     }
 
     e164->context = *context;
+    if(e164->context.input_mode > ITU_T_E164_INPUT_MODE_DIALING)
+        e164->context.input_mode = ITU_T_E164_INPUT_MODE_NUMBER;
     e164->input_country_explicit = 0;
     e164->input_area_explicit = 0;
 }
@@ -175,6 +177,39 @@ static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *val
             pos = append_digits(digits, size, pos, area_code);
     }
 
+    return append_digits(digits, size, pos, value);
+}
+
+static size_t normalize_dialing_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size)
+{
+    const char *prefix;
+    char area_code[16];
+    size_t pos = 0;
+
+    digits[0] = 0;
+    if(value[0] == 0)
+        return 0;
+
+    if(e164->context.country_code == 0 || e164->context.area_code == 0)
+        return 0;
+
+    prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
+    if(starts_with(value, prefix))
+        return append_digits(digits, size, pos, value + strlen(prefix));
+
+    pos = append_number(digits, size, pos, e164->context.country_code);
+
+    prefix = itu_t_e164_cc_2_national_prefix(e164->context.country_code);
+    if(starts_with(value, prefix))
+        return append_digits(digits, size, pos, value + strlen(prefix));
+
+    snprintf(area_code, sizeof(area_code), "%lu", (unsigned long)e164->context.area_code);
+    if(starts_with(value, area_code)) {
+        digits[0] = 0;
+        return 0;
+    }
+
+    pos = append_digits(digits, size, pos, area_code);
     return append_digits(digits, size, pos, value);
 }
 
@@ -399,7 +434,9 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     update_input_flags(e164, input, explicit_international, explicit_area);
     input_country_explicit = e164->input_country_explicit;
     input_area_explicit = e164->input_area_explicit;
-    if(explicit_international)
+    if(e164->context.input_mode == ITU_T_E164_INPUT_MODE_DIALING)
+        normalize_dialing_digits(e164, input, digits, sizeof(digits));
+    else if(explicit_international)
         memcpy(digits, input, pos + 1);
     else
         normalize_context_digits(e164, input, digits, sizeof(digits), explicit_area);
@@ -528,6 +565,39 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     }
 
     return appendf(buffer, size, 0, "%s", display);
+}
+
+ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
+{
+    const char *prefix;
+
+    if(size <= 0)
+        return 0;
+
+    buffer[0] = 0;
+    if(e164->pos == 0)
+        return 0;
+
+    if(e164->context.country_code != 0 && e164->context.area_code != 0 &&
+       e164->cc.value == e164->context.country_code) {
+        if(e164->number.ndc_len > 0 && e164->number.ndc == e164->context.area_code &&
+           number_uses_area_parentheses(e164)) {
+            return appendf(buffer, size, 0, "%s",
+                           &e164->value[e164->cc.len + e164->number.ndc_len]);
+        }
+
+        prefix = itu_t_e164_cc_2_national_prefix(e164->cc.value);
+        if(prefix != NULL && prefix[0] != 0)
+            return appendf(buffer, size, 0, "%s%s", prefix, &e164->value[e164->cc.len]);
+    }
+
+    if(e164->context.country_code != 0) {
+        prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
+        if(prefix != NULL && prefix[0] != 0)
+            return appendf(buffer, size, 0, "%s%s", prefix, e164->value);
+    }
+
+    return appendf(buffer, size, 0, "+%s", e164->value);
 }
 
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit)

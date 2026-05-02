@@ -7,7 +7,7 @@ loaded plan in memory.
 ## Browser Usage
 
 ```js
-import { E164Number, E164Plan, RESTRICT_AREA } from "./src/index.js";
+import { E164Number, E164Plan, INPUT_MODE_NUMBER, RESTRICT_AREA } from "./src/index.js";
 
 const planText = await fetch("/e164-plan.txt").then((response) => response.text());
 const plan = E164Plan.fromText(planText);
@@ -17,6 +17,7 @@ const phone = new E164Number(plan, {
   areaCode: 19,
   restriction: RESTRICT_AREA,
   acceptAlphanumeric: true,
+  inputMode: INPUT_MODE_NUMBER,
 });
 
 phone.setValue("912345678");
@@ -24,6 +25,7 @@ phone.setValue("912345678");
 console.log(phone.value);             // "5519912345678"
 console.log(phone.getValue());        // "+55 (19) 91234-5678"
 console.log(phone.getContextValue()); // "91234-5678"
+console.log(phone.getDialingValue()); // "912345678"
 console.log(phone.getCountry());      // "pt_BR"
 console.log(phone.getNumberKind());   // "regular"
 ```
@@ -53,6 +55,7 @@ input.addEventListener("itute164-change", (event) => {
 <itute164-input
   country-code="55"
   area-code="19"
+  input-mode="number"
   restriction="area"
   value="912345678"
   show-details>
@@ -66,6 +69,7 @@ Attributes and properties:
 - `rawValue`
 - `countryCode` / `country-code`
 - `areaCode` / `area-code`
+- `inputMode` / `input-mode`
 - `restriction`
 - `acceptAlphanumeric` / `accept-alphanumeric`
 - `complete`
@@ -75,7 +79,7 @@ Attributes and properties:
 The component keeps its own editing buffer, displays the formatted contextual
 number in the input, limits extra characters when the number is complete, and
 emits `itute164-change` with `{ value, rawValue, displayValue, contextValue,
-country, kind, complete }`.
+dialingValue, country, kind, complete }`.
 
 ## API
 
@@ -105,12 +109,24 @@ Context fields:
 - `areaCode`
 - `restriction`
 - `acceptAlphanumeric`
+- `inputMode`
 
 Restriction constants:
 
 - `RESTRICT_NONE`
 - `RESTRICT_COUNTRY`
 - `RESTRICT_AREA`
+
+Input mode constants:
+
+- `INPUT_MODE_NUMBER`
+- `INPUT_MODE_DIALING`
+
+`INPUT_MODE_NUMBER` is the default logical number-entry mode. It may apply the
+configured country or area context while normalizing to E.164. `INPUT_MODE_DIALING`
+expects a dial string from a known origin and requires both `countryCode` and
+`areaCode`; national and international prefixes from the plan are then treated
+as required dialing syntax.
 
 Number methods and properties:
 
@@ -119,6 +135,7 @@ Number methods and properties:
 - `phone.setContext(context)`
 - `phone.getValue()`
 - `phone.getContextValue()`
+- `phone.getDialingValue()`
 - `phone.getCountry()`
 - `phone.getNumberKind()`
 - `phone.isComplete()`

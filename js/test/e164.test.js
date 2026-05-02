@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   E164Number,
   E164Plan,
+  INPUT_MODE_DIALING,
   RESTRICT_AREA,
   RESTRICT_COUNTRY,
   RESTRICT_NONE,
@@ -192,6 +193,39 @@ describe("E164Number", () => {
     phone.setValue("9FLOWERS");
     assert.equal(phone.value, "55199");
     assert.equal(phone.getValue(), "+55 (19) 9");
+  });
+
+  it("supports dialing input mode from a fixed origin", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan, {
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_NONE,
+      inputMode: INPUT_MODE_DIALING,
+    });
+
+    phone.setValue("912345678");
+    assert.equal(phone.value, "5519912345678");
+    assert.equal(phone.getDialingValue(), "912345678");
+
+    phone.setValue("019912345678");
+    assert.equal(phone.value, "5519912345678");
+    assert.equal(phone.getDialingValue(), "912345678");
+
+    phone.setValue("19912345678");
+    assert.equal(phone.value, "");
+
+    phone.setValue("00551912345678");
+    assert.equal(phone.value, "551912345678");
+    assert.equal(phone.getDialingValue(), "12345678");
+
+    phone.setValue("08000101010");
+    assert.equal(phone.value, "558000101010");
+    assert.equal(phone.getDialingValue(), "08000101010");
+
+    phone.setContext({ countryCode: 55, inputMode: INPUT_MODE_DIALING });
+    phone.setValue("912345678");
+    assert.equal(phone.value, "");
   });
 
   it("supports digit editing helpers", () => {
