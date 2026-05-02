@@ -1,2 +1,4 @@
 /*.o
 /input
+/plan-check
+/bench-validate
