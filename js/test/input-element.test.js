@@ -147,6 +147,13 @@ it("exports the web component module", async () => {
     assert.equal(input.rawValue, "02119");
     assert.equal(input.value, "5519");
     assert.equal(fields["#number"].value, "02119");
+
+    input.value = "";
+    input.insertPhoneText("00551998259222222222222222");
+
+    assert.equal(input.rawValue, "005");
+    assert.equal(input.value, "");
+    assert.equal(fields["#number"].value, "005");
   } finally {
     globalThis.document = previousDocument;
     globalThis.customElements = previousCustomElements;

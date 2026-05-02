@@ -567,6 +567,10 @@ export class Itute164InputElement extends HTMLElement {
       const candidate = accepted + ch;
 
       this._phone.setValue(candidate);
+      if (this.hasInvalidInternationalCarrier(candidate)) {
+        this._phone.setValue(accepted);
+        break;
+      }
       if (this._phone.value === previousValue && previousValue !== "" && (this._phone.isComplete() || this._phone.pos >= 15)) {
         this._phone.setValue(accepted);
         continue;
@@ -576,6 +580,24 @@ export class Itute164InputElement extends HTMLElement {
 
     this._phone.setValue(accepted);
     return accepted;
+  }
+
+  hasInvalidInternationalCarrier(value) {
+    if (!this._phone || this._phone.context.inputMode !== INPUT_MODE_DIALING) return false;
+
+    const countryCode = this._phone.context.countryCode;
+    const prefix = this._phone.plan.internationalPrefix(countryCode);
+    if (!prefix || !value.startsWith(prefix)) return false;
+
+    const carrierLength = this._phone.plan.carrierCodeLength(countryCode);
+    if (carrierLength <= 0) return false;
+
+    const rest = value.slice(prefix.length);
+    if (rest.length < carrierLength) return false;
+
+    const carrier = rest.slice(0, carrierLength);
+    if (!/^[0-9]+$/.test(carrier)) return true;
+    return !this._phone.plan.hasCarrierCode(countryCode, Number(carrier));
   }
 
   updateFromInput(nextInput) {

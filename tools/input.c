@@ -61,6 +61,17 @@ static unsigned long parse_number(const char *value)
     return *end == 0 ? parsed : 0;
 }
 
+static int starts_with(const char *value, const char *prefix)
+{
+    size_t len;
+
+    if(prefix == NULL || prefix[0] == 0)
+        return 0;
+
+    len = strlen(prefix);
+    return strncmp(value, prefix, len) == 0;
+}
+
 static int e164_is_complete(const itu_t_e164_t *e164)
 {
     int i;
@@ -523,6 +534,41 @@ static void trim_field(struct input_state *state, enum input_field field)
     buffer[--(*len)] = 0;
 }
 
+static int phone_has_invalid_international_carrier(const struct input_state *state, const itu_t_e164_t *e164)
+{
+    const char *prefix;
+    const char *carrier;
+    int carrier_len;
+    char carrier_buffer[8];
+    char *end;
+    long carrier_code;
+
+    if(e164->context.input_mode != ITU_T_E164_INPUT_MODE_DIALING || e164->context.country_code == 0)
+        return 0;
+
+    prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
+    if(prefix == NULL || !starts_with(state->phone, prefix))
+        return 0;
+
+    carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
+    if(carrier_len <= 0)
+        return 0;
+
+    carrier = state->phone + strlen(prefix);
+    if((int)strlen(carrier) < carrier_len)
+        return 0;
+
+    if(carrier_len >= (int)sizeof(carrier_buffer))
+        return 1;
+
+    snprintf(carrier_buffer, sizeof(carrier_buffer), "%.*s", carrier_len, carrier);
+    carrier_code = strtol(carrier_buffer, &end, 10);
+    if(*end != 0)
+        return 1;
+
+    return !itu_t_e164_cc_has_carrier_code(e164->context.country_code, carrier_code);
+}
+
 static void clear_phone(struct input_state *state)
 {
     state->phone[0] = 0;
@@ -613,6 +659,12 @@ static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int 
     }
 
     itu_t_e164_set_value(e164, state->phone);
+    if(appended_digit && phone_has_invalid_international_carrier(state, e164)) {
+        trim_field(state, FIELD_PHONE);
+        itu_t_e164_set_value(e164, state->phone);
+        return;
+    }
+
     if(appended_digit && strcmp(e164->value, previous_value) == 0 && state->phone_len > 0 &&
        (e164_is_complete(e164) || e164->pos >= 15)) {
         trim_field(state, FIELD_PHONE);
