@@ -751,6 +751,40 @@ export class E164Number {
     return this.plan.ccToCountry(this.cc.value);
   }
 
+  getCountryCode() {
+    if (this.cc.type === CC_UNKNOWN || this.cc.type === CC_INCOMPLETE) return 0;
+    return this.cc.value;
+  }
+
+  getAreaCode() {
+    if (this.cc.type !== CC_NUMBER || this.number.ndcLen === 0) return 0;
+    return this.number.ndc;
+  }
+
+  getCarrierCode() {
+    return this.context.carrierCode || 0;
+  }
+
+  getNationalValue() {
+    if (this.cc.type !== CC_NUMBER || this.pos <= this.cc.len) return "";
+    return this.value.slice(this.cc.len);
+  }
+
+  getSubscriberValue() {
+    if (this.cc.type !== CC_NUMBER || this.number.snLen === 0) return "";
+    return this.value.slice(this.cc.len + this.number.ndcLen, this.cc.len + this.number.ndcLen + this.number.snLen);
+  }
+
+  getComponents() {
+    return {
+      countryCode: this.getCountryCode(),
+      areaCode: this.getAreaCode(),
+      carrierCode: this.getCarrierCode(),
+      nationalValue: this.getNationalValue(),
+      subscriberValue: this.getSubscriberValue(),
+    };
+  }
+
   getNumberKind() {
     return this.cc.type === CC_NUMBER ? this.number.kind : NUMBER_KIND_UNKNOWN;
   }

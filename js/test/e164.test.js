@@ -210,6 +210,13 @@ describe("E164Number", () => {
 
     phone.setValue("912345678");
     assert.equal(phone.value, "5519912345678");
+    assert.deepEqual(phone.getComponents(), {
+      countryCode: 55,
+      areaCode: 19,
+      carrierCode: 15,
+      nationalValue: "19912345678",
+      subscriberValue: "912345678",
+    });
     assert.equal(phone.getDialingValue(), "912345678");
 
     phone.setValue("01519912345678");
@@ -233,6 +240,13 @@ describe("E164Number", () => {
 
     phone.setValue("08000101010");
     assert.equal(phone.value, "558000101010");
+    assert.deepEqual(phone.getComponents(), {
+      countryCode: 55,
+      areaCode: 800,
+      carrierCode: 15,
+      nationalValue: "8000101010",
+      subscriberValue: "0101010",
+    });
     assert.equal(phone.getDialingValue(), "08000101010");
 
     phone.setContext({

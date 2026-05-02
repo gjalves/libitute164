@@ -179,6 +179,11 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value);
 ssize_t itu_t_e164_get_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
 ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t size);
+int itu_t_e164_get_country_code(const itu_t_e164_t *e164);
+int itu_t_e164_get_area_code(const itu_t_e164_t *e164);
+int itu_t_e164_get_carrier_code(const itu_t_e164_t *e164);
+ssize_t itu_t_e164_get_national_value(const itu_t_e164_t *e164, char *buffer, ssize_t size);
+ssize_t itu_t_e164_get_subscriber_value(const itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
 int itu_t_e164_del_digit(itu_t_e164_t *e164);
 ```
@@ -205,6 +210,12 @@ presentation is `+`.
 `itu_t_e164_get_context_value()` writes the presentation relative to the
 current context. In an area-restricted Brazilian context, for example,
 `+55 (19) 91234-5678` is presented as `91234-5678`.
+
+The component getters expose parsed pieces for applications that need to store
+or route them separately: `country_code`/DDI, `area_code`/DDD or NDC,
+`carrier_code`/CSP from context, the national value without DDI, and the
+subscriber value without DDI or DDD/NDC. Textual getters preserve significant
+zeroes.
 
 `itu_t_e164_add_digit()` and `itu_t_e164_del_digit()` are low-level digit
 editing helpers. They update the same derived fields as `set_value()`, but

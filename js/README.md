@@ -84,7 +84,7 @@ number in the input, preserves accepted alphanumeric characters in uppercase in
 that presentation, clears the editing buffer when context controls change,
 limits extra characters when the number is complete, and emits
 `itute164-change` with `{ value, rawValue, displayValue, contextValue,
-dialingValue, country, kind, complete }`.
+dialingValue, components, country, kind, complete }`.
 
 ## API
 
@@ -145,6 +145,12 @@ Number methods and properties:
 - `phone.getValue()`
 - `phone.getContextValue()`
 - `phone.getDialingValue()`
+- `phone.getComponents()`
+- `phone.getCountryCode()`
+- `phone.getAreaCode()`
+- `phone.getCarrierCode()`
+- `phone.getNationalValue()`
+- `phone.getSubscriberValue()`
 - `phone.getCountry()`
 - `phone.getNumberKind()`
 - `phone.isComplete()`

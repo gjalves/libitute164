@@ -701,6 +701,60 @@ ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t s
     return appendf(buffer, size, 0, "+%s", e164->value);
 }
 
+int itu_t_e164_get_country_code(const itu_t_e164_t *e164)
+{
+    if(e164 == NULL || e164->cc.type == ITU_T_UNKNOWN || e164->cc.type == ITU_T_INCOMPLETE)
+        return 0;
+
+    return e164->cc.value;
+}
+
+int itu_t_e164_get_area_code(const itu_t_e164_t *e164)
+{
+    if(e164 == NULL || e164->cc.type != ITU_T_NUMBER || e164->number.ndc_len == 0)
+        return 0;
+
+    return e164->number.ndc;
+}
+
+int itu_t_e164_get_carrier_code(const itu_t_e164_t *e164)
+{
+    if(e164 == NULL)
+        return 0;
+
+    return e164->context.carrier_code;
+}
+
+ssize_t itu_t_e164_get_national_value(const itu_t_e164_t *e164, char *buffer, ssize_t size)
+{
+    ssize_t len;
+
+    if(size <= 0)
+        return 0;
+
+    buffer[0] = 0;
+    if(e164 == NULL || e164->cc.type != ITU_T_NUMBER || e164->pos <= e164->cc.len)
+        return 0;
+
+    len = e164->pos - e164->cc.len;
+    return appendf(buffer, size, 0, "%.*s", (int)len, &e164->value[e164->cc.len]);
+}
+
+ssize_t itu_t_e164_get_subscriber_value(const itu_t_e164_t *e164, char *buffer, ssize_t size)
+{
+    int offset;
+
+    if(size <= 0)
+        return 0;
+
+    buffer[0] = 0;
+    if(e164 == NULL || e164->cc.type != ITU_T_NUMBER || e164->number.sn_len == 0)
+        return 0;
+
+    offset = e164->cc.len + e164->number.ndc_len;
+    return appendf(buffer, size, 0, "%.*s", e164->number.sn_len, &e164->value[offset]);
+}
+
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit)
 {
     if(e164->pos >= 15) return 0;

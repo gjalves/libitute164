@@ -349,6 +349,12 @@ static void e164_test_load_plan_file(void **state)
     itu_t_e164_get_context_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("0800 010 10 10", buffer);
     assert_string_equal("558000101010", e164.value);
+    assert_int_equal(55, itu_t_e164_get_country_code(&e164));
+    assert_int_equal(800, itu_t_e164_get_area_code(&e164));
+    itu_t_e164_get_national_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("8000101010", buffer);
+    itu_t_e164_get_subscriber_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("0101010", buffer);
     assert_int_equal(ITU_T_E164_NUMBER_KIND_TOLL_FREE, itu_t_e164_get_number_kind(&e164));
     assert_string_equal("toll-free", itu_t_e164_number_kind_name(itu_t_e164_get_number_kind(&e164)));
 
@@ -563,6 +569,13 @@ static void e164_test_dialing_input_mode(void **state)
 
     itu_t_e164_set_value(&e164, "912345678");
     assert_string_equal("5519912345678", e164.value);
+    assert_int_equal(55, itu_t_e164_get_country_code(&e164));
+    assert_int_equal(19, itu_t_e164_get_area_code(&e164));
+    assert_int_equal(15, itu_t_e164_get_carrier_code(&e164));
+    itu_t_e164_get_national_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("19912345678", buffer);
+    itu_t_e164_get_subscriber_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("912345678", buffer);
     itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("912345678", buffer);
 

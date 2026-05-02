@@ -612,6 +612,7 @@ export class Itute164InputElement extends HTMLElement {
       displayValue: this._phone?.getValue() || "",
       contextValue: this._phone?.getContextValue() || "",
       dialingValue: this._phone?.getDialingValue() || "",
+      components: this._phone?.getComponents() || null,
       country: this.country,
       kind: this.numberKind,
       complete: this.complete,
