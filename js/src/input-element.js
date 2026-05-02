@@ -513,7 +513,7 @@ export class Itute164InputElement extends HTMLElement {
 
   phoneDisplayValue() {
     if (!this._phone) return "";
-    if (this._phone.pos === 0 && (this._phoneInput === "+" || this._phoneInput === "(")) return this._phoneInput;
+    if (this._phone.pos === 0 && this._phoneInput.length > 0) return this._phoneInput;
     return this.getDisplayContextValue();
   }
 

@@ -414,6 +414,11 @@ static ssize_t get_display_phone_value(const struct input_state *state, itu_t_e1
     int value_pos;
     int phone_pos;
 
+    if(e164->pos == 0 && state->phone_len > 0) {
+        snprintf(buffer, size, "%s", state->phone);
+        return strlen(buffer);
+    }
+
     if(!state->accept_alphanumeric)
         return itu_t_e164_get_context_value(e164, buffer, size);
 
