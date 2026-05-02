@@ -18,6 +18,7 @@ tools: libitute164.a
 
 check: all
 	./tests/tests
+	$(MAKE) -C tools check
 	$(MAKE) check-plan
 
 test: check

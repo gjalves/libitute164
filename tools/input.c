@@ -36,14 +36,6 @@ struct input_state {
     enum input_field field;
 };
 
-static void load_numbering_plan(void)
-{
-    if(itu_t_e164_load_default_plan() == 0)
-        return;
-
-    itu_t_e164_load_plan_file("data/e164-plan.txt");
-}
-
 static const char *known_country(itu_t_e164_t *e164)
 {
     return itu_t_e164_get_country(e164);
@@ -553,6 +545,25 @@ static void clear_phone(struct input_state *state)
     state->phone_len = 0;
 }
 
+static void limit_complete_phone_input(struct input_state *state, itu_t_e164_t *e164)
+{
+    while(state->phone_len > 0 && (e164_is_complete(e164) || e164->pos >= 15)) {
+        itu_t_e164_t candidate = *e164;
+        char current_value[sizeof(e164->value)];
+        char candidate_phone[sizeof(state->phone)];
+
+        snprintf(current_value, sizeof(current_value), "%s", e164->value);
+        snprintf(candidate_phone, sizeof(candidate_phone), "%s", state->phone);
+        candidate_phone[state->phone_len - 1] = 0;
+        itu_t_e164_set_value(&candidate, candidate_phone);
+        if(strcmp(candidate.value, current_value) != 0)
+            break;
+
+        trim_field(state, FIELD_PHONE);
+        *e164 = candidate;
+    }
+}
+
 static int set_restriction(struct input_state *state, int ch)
 {
     unsigned long previous;
@@ -644,6 +655,7 @@ static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int 
         trim_field(state, FIELD_PHONE);
         itu_t_e164_set_value(e164, state->phone);
     }
+    limit_complete_phone_input(state, e164);
 }
 
 void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
@@ -673,6 +685,15 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
         }
         draw_form(win, &state, e164);
     }
+}
+
+#ifndef ITUTE164_INPUT_NO_MAIN
+static void load_numbering_plan(void)
+{
+    if(itu_t_e164_load_default_plan() == 0)
+        return;
+
+    itu_t_e164_load_plan_file("data/e164-plan.txt");
 }
 
 int main() {
@@ -707,3 +728,4 @@ int main() {
 
     return 0;
 }
+#endif
