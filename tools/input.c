@@ -414,7 +414,7 @@ static ssize_t get_display_phone_value(const struct input_state *state, itu_t_e1
     int value_pos;
     int phone_pos;
 
-    if(e164->pos == 0 && state->phone_len > 0) {
+    if((e164->context.input_mode == ITU_T_E164_INPUT_MODE_DIALING || e164->pos == 0) && state->phone_len > 0) {
         snprintf(buffer, size, "%s", state->phone);
         return strlen(buffer);
     }
