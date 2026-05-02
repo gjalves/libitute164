@@ -4,6 +4,8 @@ Browser-first JavaScript implementation of the libitute164 phone number parser.
 It reads the same `e164-plan.txt` format used by the C library and keeps the
 loaded plan in memory.
 
+Published demo: https://gjalves.github.io/libitute164/js/demo/.
+
 ## Browser Usage
 
 ```js

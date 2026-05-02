@@ -3,6 +3,11 @@
 
 `libITU-T-E164` is a C library for handling phone numbers in the ITU-T E.164 standard, including support for global, geographic, group numbers, and more. The library provides a simple interface for initialization, configuration, and phone number manipulation, focusing on compliance with international specifications.
 
+It is intended for applications that need to normalize, validate, format, and
+derive dialing strings from telephone numbers while keeping regulatory
+numbering data outside the compiled library. A browser demo is published at
+https://gjalves.github.io/libitute164/js/demo/.
+
 ## Features
 
 - **ITU-T E.164 standard support**:
@@ -76,8 +81,11 @@ cd js
 npm test
 ```
 
-The browser demo in `js/demo/` loads `data/e164-plan.txt` with `fetch`, so it
-must be served over HTTP:
+The published browser demo is available at
+https://gjalves.github.io/libitute164/js/demo/.
+
+For local development, the browser demo in `js/demo/` loads
+`data/e164-plan.txt` with `fetch`, so it must be served over HTTP:
 
 ```sh
 python3 -m http.server 8000
