@@ -249,6 +249,35 @@ describe("E164Number", () => {
     assert.equal(phone.value, "");
   });
 
+  it("allows Brazilian toll-free dialing input incrementally", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan, {
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_NONE,
+      inputMode: INPUT_MODE_DIALING,
+      carrierCode: 21,
+    });
+    let input = "";
+
+    for (const digit of "08000101010") {
+      const previousValue = phone.value;
+      const candidate = input + digit;
+
+      phone.setValue(candidate);
+      if (phone.value === previousValue && previousValue !== "" && phone.isComplete()) {
+        phone.setValue(input);
+        continue;
+      }
+      input = candidate;
+    }
+
+    assert.equal(input, "08000101010");
+    assert.equal(phone.value, "558000101010");
+    assert.equal(phone.getContextValue(), "0800 010 10 10");
+    assert.equal(phone.getDialingValue(), "08000101010");
+  });
+
   it("supports digit editing helpers", () => {
     const plan = loadedPlan();
     const phone = new E164Number(plan);

@@ -502,7 +502,7 @@ export class Itute164InputElement extends HTMLElement {
       const candidate = accepted + ch;
 
       this._phone.setValue(candidate);
-      if (this._phone.value === previousValue && previousValue !== "") {
+      if (this._phone.value === previousValue && previousValue !== "" && this._phone.isComplete()) {
         this._phone.setValue(accepted);
         continue;
       }

@@ -582,6 +582,67 @@ static void e164_test_dialing_input_mode(void **state)
     itu_t_e164_reset_plan();
 }
 
+static int test_e164_is_complete(const itu_t_e164_t *e164)
+{
+    int i;
+
+    if(e164->pos == 0 || e164->cc.type != ITU_T_NUMBER)
+        return 0;
+
+    if(e164->number.type != ITU_T_AREA_NUMBER || e164->number.sn_len == 0)
+        return 0;
+
+    for(i = 0; i < 10; i++) {
+        itu_t_e164_t copy = *e164;
+
+        itu_t_e164_add_digit(&copy, '0' + i);
+        if(strcmp(copy.value, e164->value) != 0)
+            return 0;
+    }
+
+    return 1;
+}
+
+static void e164_test_dialing_toll_free_incremental_input(void **state)
+{
+    (void) state;
+    itu_t_e164_t e164;
+    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0, ITU_T_E164_INPUT_MODE_DIALING, 21};
+    char input[32] = "";
+    const char *digits = "08000101010";
+    char buffer[BUFSIZ];
+    size_t i;
+
+    assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &context);
+
+    for(i = 0; digits[i] != 0; i++) {
+        char previous_value[sizeof(e164.value)];
+        size_t len;
+
+        snprintf(previous_value, sizeof(previous_value), "%s", e164.value);
+        len = strlen(input);
+        input[len] = digits[i];
+        input[len + 1] = 0;
+        itu_t_e164_set_value(&e164, input);
+        if(strcmp(e164.value, previous_value) == 0 && previous_value[0] != 0 && test_e164_is_complete(&e164)) {
+            input[len] = 0;
+            itu_t_e164_set_value(&e164, input);
+        }
+    }
+
+    assert_string_equal("08000101010", input);
+    assert_string_equal("558000101010", e164.value);
+    itu_t_e164_get_context_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("0800 010 10 10", buffer);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("08000101010", buffer);
+
+    itu_t_e164_reset_plan();
+}
+
 static void e164_test_load_plan_override(void **state)
 {
     (void) state;
@@ -810,6 +871,7 @@ int main(void) {
         cmocka_unit_test(e164_test_context_local_and_national_input),
         cmocka_unit_test(e164_test_context_alphanumeric_input),
         cmocka_unit_test(e164_test_dialing_input_mode),
+        cmocka_unit_test(e164_test_dialing_toll_free_incremental_input),
         cmocka_unit_test(e164_test_load_plan_override),
         cmocka_unit_test(e164_test_load_plan_memory),
         cmocka_unit_test(e164_test_area_country_override),

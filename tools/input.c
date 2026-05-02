@@ -586,7 +586,7 @@ static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int 
     }
 
     itu_t_e164_set_value(e164, state->phone);
-    if(appended_digit && strcmp(e164->value, previous_value) == 0 && state->phone_len > 0) {
+    if(appended_digit && strcmp(e164->value, previous_value) == 0 && state->phone_len > 0 && e164_is_complete(e164)) {
         trim_field(state, FIELD_PHONE);
         itu_t_e164_set_value(e164, state->phone);
     }
