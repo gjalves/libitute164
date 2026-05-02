@@ -41,6 +41,11 @@ it("exports the web component module", async () => {
     "#full": createField(),
     "#context": createField(),
     "#dialing": createField(),
+    "#component-country-code": createField(),
+    "#component-area-code": createField(),
+    "#component-carrier-code": createField(),
+    "#component-national": createField(),
+    "#component-subscriber": createField(),
     "#detected-country": createField(),
     "#kind": createField(),
     "#status": createField(),
@@ -147,6 +152,11 @@ it("exports the web component module", async () => {
     assert.equal(input.rawValue, "02119");
     assert.equal(input.value, "5519");
     assert.equal(fields["#number"].value, "02119");
+    assert.equal(fields["#component-country-code"].textContent, "55");
+    assert.equal(fields["#component-area-code"].textContent, "19");
+    assert.equal(fields["#component-carrier-code"].textContent, "21");
+    assert.equal(fields["#component-national"].textContent, "19");
+    assert.equal(fields["#component-subscriber"].textContent, "");
 
     input.value = "";
     input.insertPhoneText("00551998259222222222222222");
@@ -154,6 +164,11 @@ it("exports the web component module", async () => {
     assert.equal(input.rawValue, "005519982592222");
     assert.equal(input.value, "5519982592222");
     assert.equal(fields["#number"].value, "005519982592222");
+    assert.equal(fields["#component-country-code"].textContent, "55");
+    assert.equal(fields["#component-area-code"].textContent, "19");
+    assert.equal(fields["#component-carrier-code"].textContent, "21");
+    assert.equal(fields["#component-national"].textContent, "19982592222");
+    assert.equal(fields["#component-subscriber"].textContent, "982592222");
   } finally {
     globalThis.document = previousDocument;
     globalThis.customElements = previousCustomElements;

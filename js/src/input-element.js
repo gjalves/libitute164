@@ -168,6 +168,26 @@ template.innerHTML = `
       <dd id="dialing"></dd>
     </div>
     <div>
+      <dt>DDI</dt>
+      <dd id="component-country-code"></dd>
+    </div>
+    <div>
+      <dt>DDD</dt>
+      <dd id="component-area-code"></dd>
+    </div>
+    <div>
+      <dt>CSP</dt>
+      <dd id="component-carrier-code"></dd>
+    </div>
+    <div>
+      <dt>National</dt>
+      <dd id="component-national"></dd>
+    </div>
+    <div>
+      <dt>Subscriber</dt>
+      <dd id="component-subscriber"></dd>
+    </div>
+    <div>
       <dt>Country</dt>
       <dd id="detected-country"></dd>
     </div>
@@ -242,6 +262,11 @@ export class Itute164InputElement extends HTMLElement {
       full: this.shadowRoot.querySelector("#full"),
       context: this.shadowRoot.querySelector("#context"),
       dialing: this.shadowRoot.querySelector("#dialing"),
+      componentCountryCode: this.shadowRoot.querySelector("#component-country-code"),
+      componentAreaCode: this.shadowRoot.querySelector("#component-area-code"),
+      componentCarrierCode: this.shadowRoot.querySelector("#component-carrier-code"),
+      componentNational: this.shadowRoot.querySelector("#component-national"),
+      componentSubscriber: this.shadowRoot.querySelector("#component-subscriber"),
       detectedCountry: this.shadowRoot.querySelector("#detected-country"),
       kind: this.shadowRoot.querySelector("#kind"),
       status: this.shadowRoot.querySelector("#status"),
@@ -623,10 +648,16 @@ export class Itute164InputElement extends HTMLElement {
     this.syncPhoneField();
 
     const value = this._phone?.value || "";
+    const components = this._phone?.getComponents() || {};
     this.fields.raw.textContent = value || "-";
     this.fields.full.textContent = this._phone?.pos === 0 ? "" : this._phone.getValue();
     this.fields.context.textContent = this._phone?.getContextValue() || "";
     this.fields.dialing.textContent = this._phone?.getDialingValue() || "";
+    this.fields.componentCountryCode.textContent = components.countryCode ? String(components.countryCode) : "";
+    this.fields.componentAreaCode.textContent = components.areaCode ? String(components.areaCode) : "";
+    this.fields.componentCarrierCode.textContent = components.carrierCode ? String(components.carrierCode) : "";
+    this.fields.componentNational.textContent = components.nationalValue || "";
+    this.fields.componentSubscriber.textContent = components.subscriberValue || "";
     this.fields.detectedCountry.textContent = this.country || "unknown";
     this.fields.kind.textContent = this.numberKind;
     this.fields.status.textContent = this.complete ? "complete" : "incomplete";

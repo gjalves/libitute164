@@ -444,10 +444,26 @@ static ssize_t get_display_phone_value(const struct input_state *state, itu_t_e1
     return itu_t_e164_get_context_value(&display_e164, buffer, size);
 }
 
+static const char *component_int_value(char *buffer, size_t size, int value)
+{
+    if(value == 0) {
+        buffer[0] = 0;
+        return buffer;
+    }
+
+    snprintf(buffer, size, "%d", value);
+    return buffer;
+}
+
 static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t *e164)
 {
     const char *country;
     char buffer[BUFSIZ];
+    char country_code[16];
+    char area_code[16];
+    char carrier_code[16];
+    char national[BUFSIZ];
+    char subscriber[BUFSIZ];
     int bytes;
 
     werase(win);
@@ -469,15 +485,23 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     itu_t_e164_get_dialing_value(e164, buffer, sizeof(buffer));
     draw_field(win, 11, "Discagem", buffer, 0);
 
+    component_int_value(country_code, sizeof(country_code), itu_t_e164_get_country_code(e164));
+    component_int_value(area_code, sizeof(area_code), itu_t_e164_get_area_code(e164));
+    component_int_value(carrier_code, sizeof(carrier_code), itu_t_e164_get_carrier_code(e164));
+    itu_t_e164_get_national_value(e164, national, sizeof(national));
+    itu_t_e164_get_subscriber_value(e164, subscriber, sizeof(subscriber));
+    mvwprintw(win, 12, 2, "DDI: %-5s DDD: %-6s CSP: %-6s", country_code, area_code, carrier_code);
+    mvwprintw(win, 13, 2, "Nacional: %-20s Assinante: %-18s", national, subscriber);
+
     country = known_country(e164);
     if(country != NULL)
-        mvwprintw(win, 12, 2, "Pais: %-18s", country);
+        mvwprintw(win, 14, 2, "Pais: %-18s", country);
     else
-        mvwprintw(win, 12, 2, "%-24s", "");
+        mvwprintw(win, 14, 2, "%-24s", "");
 
-    mvwprintw(win, 12, 34, "Tipo: %-10s", itu_t_e164_number_kind_name(itu_t_e164_get_number_kind(e164)));
-    mvwprintw(win, 13, 2, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
-    mvwprintw(win, 14, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
+    mvwprintw(win, 14, 34, "Tipo: %-10s", itu_t_e164_number_kind_name(itu_t_e164_get_number_kind(e164)));
+    mvwprintw(win, 15, 2, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
+    mvwprintw(win, 16, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
     wmove(win, field_y(state->field), state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
     wrefresh(win);
 }
@@ -650,7 +674,7 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
 }
 
 int main() {
-    int startx, starty, width = INPUT_WIDTH, height = 16;
+    int startx, starty, width = INPUT_WIDTH, height = 18;
     WINDOW *win;
 
     itu_t_e164_t e164;
