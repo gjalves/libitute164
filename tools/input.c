@@ -518,54 +518,76 @@ static void trim_field(struct input_state *state, enum input_field field)
     buffer[--(*len)] = 0;
 }
 
-static void set_restriction(struct input_state *state, int ch)
+static void clear_phone(struct input_state *state)
 {
-    if(ch < '0' || ch > '2')
-        return;
-
-    set_restriction_value(state, ch - '0');
+    state->phone[0] = 0;
+    state->phone_len = 0;
 }
 
-static void handle_context_key(struct input_state *state, int ch)
+static int set_restriction(struct input_state *state, int ch)
+{
+    unsigned long previous;
+
+    if(ch < '0' || ch > '2')
+        return 0;
+
+    previous = restriction_value(state);
+    set_restriction_value(state, ch - '0');
+    return previous != restriction_value(state);
+}
+
+static int handle_context_key(struct input_state *state, int ch)
 {
     if(ch == KEY_BACKSPACE || ch == 127) {
+        const char *buffer = field_value(state, state->field);
+        size_t previous_len = strlen(buffer);
+
         trim_field(state, state->field);
-        return;
+        return strlen(buffer) != previous_len;
     }
 
     if(state->field == FIELD_RESTRICTION) {
+        unsigned long previous = restriction_value(state);
+
         if(ch == KEY_LEFT) {
             cycle_restriction(state, -1);
-            return;
+            return previous != restriction_value(state);
         }
         if(ch == KEY_RIGHT || ch == ' ') {
             cycle_restriction(state, 1);
-            return;
+            return previous != restriction_value(state);
         }
-        set_restriction(state, ch);
-        return;
+        return set_restriction(state, ch);
     }
 
     if(state->field == FIELD_MODE) {
-        if(ch == KEY_LEFT || ch == '0' || ch == 'n' || ch == 'N')
+        unsigned long previous = mode_value(state);
+
+        if(ch == KEY_LEFT || ch == '0' || ch == 'n' || ch == 'N') {
             set_mode_value(state, ITU_T_E164_INPUT_MODE_NUMBER);
-        else if(ch == KEY_RIGHT || ch == ' ')
+        } else if(ch == KEY_RIGHT || ch == ' ') {
             cycle_mode(state);
-        else if(ch == '1' || ch == 'd' || ch == 'D')
+        } else if(ch == '1' || ch == 'd' || ch == 'D') {
             set_mode_value(state, ITU_T_E164_INPUT_MODE_DIALING);
-        return;
+        }
+        return previous != mode_value(state);
     }
 
     if(state->field == FIELD_ALPHANUMERIC) {
-        if(ch == KEY_LEFT || ch == '0' || ch == 'n' || ch == 'N')
+        int previous = state->accept_alphanumeric;
+
+        if(ch == KEY_LEFT || ch == '0' || ch == 'n' || ch == 'N') {
             state->accept_alphanumeric = 0;
-        else if(ch == KEY_RIGHT || ch == ' ' || ch == '1' || ch == 's' || ch == 'S')
+        } else if(ch == KEY_RIGHT || ch == ' ' || ch == '1' || ch == 's' || ch == 'S') {
             state->accept_alphanumeric = 1;
-        return;
+        }
+        return previous != state->accept_alphanumeric;
     }
 
     if(ch >= 0 && ch <= 255 && isdigit((unsigned char)ch))
-        append_to_field(state, state->field, ch);
+        return append_to_field(state, state->field, ch);
+
+    return 0;
 }
 
 static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int ch)
@@ -613,7 +635,8 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
         } else if(state.field == FIELD_PHONE) {
             handle_phone_key(&state, e164, ch);
         } else {
-            handle_context_key(&state, ch);
+            if(handle_context_key(&state, ch))
+                clear_phone(&state);
             apply_context(e164, &state);
         }
         draw_form(win, &state, e164);

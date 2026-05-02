@@ -59,7 +59,14 @@ document.querySelector("itute164-input").plan = E164Plan.fromText(planText);
 ```
 
 ```html
-<itute164-input country-code="55" area-code="19" restriction="area" show-details></itute164-input>
+<itute164-input
+  country-code="55"
+  area-code="19"
+  carrier-code="15"
+  input-mode="number"
+  restriction="area"
+  show-details>
+</itute164-input>
 ```
 
 Run the JavaScript tests with:
@@ -88,9 +95,10 @@ if parsing fails, the previous plan remains active. Lookup helpers include
 `nationalPrefix(countryCode)`, and `internationalPrefix(countryCode)`.
 
 `new E164Number(plan, context)` creates a number bound to a plan. The context
-fields are `countryCode`, `areaCode`, `restriction`, `acceptAlphanumeric`, and
-`inputMode`. `carrierCode` may be set when a country requires a carrier
-selection code for long-distance dialing. Use `RESTRICT_NONE`, `RESTRICT_COUNTRY`, and `RESTRICT_AREA` for
+fields are `countryCode`, `areaCode`, `carrierCode`, `restriction`,
+`acceptAlphanumeric`, and `inputMode`. `carrierCode` may be set when a country
+requires a carrier selection code for long-distance dialing. Use
+`RESTRICT_NONE`, `RESTRICT_COUNTRY`, and `RESTRICT_AREA` for
 the restriction value. Use `INPUT_MODE_NUMBER` for logical number entry and
 `INPUT_MODE_DIALING` for dial-string entry from a known origin; dialing mode
 requires both `countryCode` and `areaCode`.
@@ -124,6 +132,7 @@ typedef struct {
             uint8_t sn_len;
             uint64_t sn;
             const char *mask;
+            enum itu_t_e164_number_kind_enum kind;
         } number;
         struct {
             uint64_t gsn;
@@ -210,11 +219,15 @@ typedef struct {
     uint32_t area_code;
     uint8_t restriction;
     uint8_t accept_alphanumeric;
+    uint8_t input_mode;
+    uint16_t carrier_code;
 } itu_t_e164_context_t;
 ```
 
 `country_code` is the default DDI. `area_code` is the default DDD/NDC inside
 that country. Leaving `country_code` as zero disables default locality.
+`carrier_code` selects the long-distance carrier when the numbering plan
+requires one for dialing strings.
 
 `restriction` controls whether the context is only a default or also a policy:
 
@@ -236,6 +249,18 @@ letters and maps them through the telephone keypad before validation:
 `ABC -> 2`, `DEF -> 3`, `GHI -> 4`, `JKL -> 5`, `MNO -> 6`, `PQRS -> 7`,
 `TUV -> 8`, and `WXYZ -> 9`.
 
+`input_mode` controls how input text is interpreted:
+
+```c
+#define ITU_T_E164_INPUT_MODE_NUMBER 0
+#define ITU_T_E164_INPUT_MODE_DIALING 1
+```
+
+`ITU_T_E164_INPUT_MODE_NUMBER` treats input as a logical phone number.
+`ITU_T_E164_INPUT_MODE_DIALING` treats input as a dial string from the current
+context, including national or international prefixes and carrier selection
+codes where the plan defines them.
+
 ### Lookup Helpers
 
 ```c
@@ -248,6 +273,8 @@ enum itu_t_e164_number_kind_enum itu_t_e164_get_number_kind(const itu_t_e164_t *
 const char *itu_t_e164_number_kind_name(enum itu_t_e164_number_kind_enum kind);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
+int itu_t_e164_cc_2_carrier_code_length(int country_code);
+int itu_t_e164_cc_has_carrier_code(int country_code, int carrier_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 ```
 
@@ -354,7 +381,11 @@ Default locality is application context, not numbering-plan data. Set it on an
 `itu_t_e164_t` instance to accept national or local input without `+`:
 
 ```c
-itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA, 0};
+itu_t_e164_context_t context = {
+    .country_code = 55,
+    .area_code = 19,
+    .restriction = ITU_T_E164_CONTEXT_RESTRICT_AREA,
+};
 
 itu_t_e164_set_context(&e164, &context);
 itu_t_e164_set_value(&e164, "912345678");    /* +55 (19) 91234-5678 */

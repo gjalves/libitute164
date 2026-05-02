@@ -10,6 +10,7 @@ import {
 
 const restrictions = new Set([RESTRICT_NONE, RESTRICT_COUNTRY, RESTRICT_AREA]);
 const inputModes = new Set([INPUT_MODE_NUMBER, INPUT_MODE_DIALING]);
+const contextAttributes = new Set(["country-code", "area-code", "carrier-code", "restriction", "input-mode", "accept-alphanumeric"]);
 
 const template = document.createElement("template");
 template.innerHTML = `
@@ -208,6 +209,19 @@ function modeToAttribute(value) {
   return value === INPUT_MODE_DIALING ? "dialing" : "number";
 }
 
+function alphaToPhoneDigit(ch) {
+  const code = ch.toUpperCase();
+  if (code >= "A" && code <= "C") return "2";
+  if (code >= "D" && code <= "F") return "3";
+  if (code >= "G" && code <= "I") return "4";
+  if (code >= "J" && code <= "L") return "5";
+  if (code >= "M" && code <= "O") return "6";
+  if (code >= "P" && code <= "S") return "7";
+  if (code >= "T" && code <= "V") return "8";
+  if (code >= "W" && code <= "Z") return "9";
+  return "";
+}
+
 export class Itute164InputElement extends HTMLElement {
   static observedAttributes = ["country-code", "area-code", "carrier-code", "restriction", "input-mode", "accept-alphanumeric", "value", "show-details"];
 
@@ -258,9 +272,10 @@ export class Itute164InputElement extends HTMLElement {
       input.removeEventListener("input", this);
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(name) {
     if (this._syncingAttributes || !this.isConnected) return;
     this.syncFromAttributes();
+    if (contextAttributes.has(name)) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -292,8 +307,11 @@ export class Itute164InputElement extends HTMLElement {
   }
 
   set countryCode(value) {
-    this.fields.country.value = value ? String(value) : "";
+    const nextValue = value ? String(value) : "";
+    const changed = this.fields.country.value !== nextValue;
+    this.fields.country.value = nextValue;
     this.syncAttribute("country-code", this.fields.country.value);
+    if (changed) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -302,8 +320,11 @@ export class Itute164InputElement extends HTMLElement {
   }
 
   set areaCode(value) {
-    this.fields.area.value = value ? String(value) : "";
+    const nextValue = value ? String(value) : "";
+    const changed = this.fields.area.value !== nextValue;
+    this.fields.area.value = nextValue;
     this.syncAttribute("area-code", this.fields.area.value);
+    if (changed) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -312,8 +333,11 @@ export class Itute164InputElement extends HTMLElement {
   }
 
   set carrierCode(value) {
-    this.fields.carrier.value = value ? String(value) : "";
+    const nextValue = value ? String(value) : "";
+    const changed = this.fields.carrier.value !== nextValue;
+    this.fields.carrier.value = nextValue;
     this.syncAttribute("carrier-code", this.fields.carrier.value);
+    if (changed) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -327,15 +351,19 @@ export class Itute164InputElement extends HTMLElement {
 
   set inputMode(value) {
     const mode = modeFromAttribute(String(value));
+    const changed = modeFromAttribute(this.fields.mode.value) !== mode;
     this.fields.mode.value = String(mode);
     this.syncAttribute("input-mode", modeToAttribute(mode));
+    if (changed) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
   set restriction(value) {
     const restriction = restrictionFromAttribute(String(value));
+    const changed = restrictionFromAttribute(this.fields.restriction.value) !== restriction;
     this.fields.restriction.value = String(restriction);
     this.syncAttribute("restriction", restrictionToAttribute(restriction));
+    if (changed) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -344,8 +372,11 @@ export class Itute164InputElement extends HTMLElement {
   }
 
   set acceptAlphanumeric(value) {
-    this.fields.alphanumeric.checked = Boolean(value);
+    const nextValue = Boolean(value);
+    const changed = this.fields.alphanumeric.checked !== nextValue;
+    this.fields.alphanumeric.checked = nextValue;
     this.syncBooleanAttribute("accept-alphanumeric", this.fields.alphanumeric.checked);
+    if (changed) this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -368,6 +399,7 @@ export class Itute164InputElement extends HTMLElement {
     }
 
     this.syncContextAttributes();
+    this.clearPhoneInput();
     this.rebuildFromContext();
   }
 
@@ -434,6 +466,10 @@ export class Itute164InputElement extends HTMLElement {
     this.syncBooleanAttribute("accept-alphanumeric", this.fields.alphanumeric.checked);
   }
 
+  clearPhoneInput() {
+    this._phoneInput = "";
+  }
+
   applyContext() {
     if (!this._phone) return;
 
@@ -478,7 +514,35 @@ export class Itute164InputElement extends HTMLElement {
   phoneDisplayValue() {
     if (!this._phone) return "";
     if (this._phone.pos === 0 && (this._phoneInput === "+" || this._phoneInput === "(")) return this._phoneInput;
-    return this._phone.getContextValue();
+    return this.getDisplayContextValue();
+  }
+
+  getDisplayContextValue() {
+    if (!this._phone || this._phoneInput.length === 0) return this._phone?.getContextValue() || "";
+
+    const value = this._phone.value.split("");
+    let valuePos = value.length - 1;
+
+    for (let inputPos = this._phoneInput.length - 1; inputPos >= 0 && valuePos >= 0; inputPos--) {
+      const ch = this._phoneInput[inputPos];
+
+      if (/^[0-9]$/.test(ch)) {
+        if (value[valuePos] === ch) valuePos--;
+        continue;
+      }
+
+      if (/^[A-Za-z]$/.test(ch)) {
+        const digit = alphaToPhoneDigit(ch);
+        if (digit !== "" && value[valuePos] === digit) {
+          value[valuePos] = ch.toUpperCase();
+          valuePos--;
+        }
+      }
+    }
+
+    const displayPhone = this._phone.clone();
+    displayPhone.value = value.join("");
+    return displayPhone.getContextValue();
   }
 
   syncPhoneField() {

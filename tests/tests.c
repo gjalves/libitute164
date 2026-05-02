@@ -338,7 +338,11 @@ static void e164_test_load_plan_file(void **state)
     assert_string_equal("pt_BR", itu_t_e164_get_country(&e164));
 
     itu_t_e164_init(&e164);
-    itu_t_e164_set_context(&e164, &(itu_t_e164_context_t){55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0});
+    itu_t_e164_set_context(&e164, &(itu_t_e164_context_t){
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE,
+    });
     itu_t_e164_set_value(&e164, "08000101010");
     itu_t_e164_get_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("+55 800 010 10 10", buffer);
@@ -371,9 +375,20 @@ static void e164_test_context_local_and_national_input(void **state)
 {
     (void) state;
     itu_t_e164_t e164;
-    itu_t_e164_context_t open_context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0};
-    itu_t_e164_context_t country_context = {55, 0, ITU_T_E164_CONTEXT_RESTRICT_COUNTRY, 0};
-    itu_t_e164_context_t area_context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA, 0};
+    itu_t_e164_context_t open_context = {
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE,
+    };
+    itu_t_e164_context_t country_context = {
+        .country_code = 55,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_COUNTRY,
+    };
+    itu_t_e164_context_t area_context = {
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_AREA,
+    };
     char buffer[BUFSIZ];
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
@@ -501,7 +516,12 @@ static void e164_test_context_alphanumeric_input(void **state)
 {
     (void) state;
     itu_t_e164_t e164;
-    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_AREA, 1};
+    itu_t_e164_context_t context = {
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_AREA,
+        .accept_alphanumeric = 1,
+    };
     char buffer[BUFSIZ];
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
@@ -527,7 +547,13 @@ static void e164_test_dialing_input_mode(void **state)
 {
     (void) state;
     itu_t_e164_t e164;
-    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0, ITU_T_E164_INPUT_MODE_DIALING, 15};
+    itu_t_e164_context_t context = {
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE,
+        .input_mode = ITU_T_E164_INPUT_MODE_DIALING,
+        .carrier_code = 15,
+    };
     char buffer[BUFSIZ];
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
@@ -607,7 +633,13 @@ static void e164_test_dialing_toll_free_incremental_input(void **state)
 {
     (void) state;
     itu_t_e164_t e164;
-    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0, ITU_T_E164_INPUT_MODE_DIALING, 21};
+    itu_t_e164_context_t context = {
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE,
+        .input_mode = ITU_T_E164_INPUT_MODE_DIALING,
+        .carrier_code = 21,
+    };
     char input[32] = "";
     const char *digits = "08000101010";
     char buffer[BUFSIZ];

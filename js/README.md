@@ -80,8 +80,10 @@ Attributes and properties:
 - `numberKind`
 
 The component keeps its own editing buffer, displays the formatted contextual
-number in the input, limits extra characters when the number is complete, and
-emits `itute164-change` with `{ value, rawValue, displayValue, contextValue,
+number in the input, preserves accepted alphanumeric characters in uppercase in
+that presentation, clears the editing buffer when context controls change,
+limits extra characters when the number is complete, and emits
+`itute164-change` with `{ value, rawValue, displayValue, contextValue,
 dialingValue, country, kind, complete }`.
 
 ## API
