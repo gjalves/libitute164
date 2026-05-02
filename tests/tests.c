@@ -816,6 +816,51 @@ static void e164_test_dialing_omitted_carrier_incremental_limit(void **state)
     itu_t_e164_reset_plan();
 }
 
+static void e164_test_dialing_omitted_carrier_rejects_trailing_zeroes(void **state)
+{
+    (void) state;
+    itu_t_e164_t e164;
+    itu_t_e164_context_t context = {
+        .country_code = 55,
+        .area_code = 19,
+        .restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE,
+        .input_mode = ITU_T_E164_INPUT_MODE_DIALING,
+        .carrier_code = 21,
+    };
+    char input[40] = "";
+    const char *digits = "005519982592222000000000000000";
+    size_t i;
+
+    assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
+
+    itu_t_e164_init(&e164);
+    itu_t_e164_set_context(&e164, &context);
+
+    for(i = 0; digits[i] != 0; i++) {
+        char previous_value[sizeof(e164.value)];
+        int previous_locked;
+        size_t len;
+
+        snprintf(previous_value, sizeof(previous_value), "%s", e164.value);
+        previous_locked = previous_value[0] != 0 && (test_e164_is_complete(&e164) || e164.pos >= 15);
+        len = strlen(input);
+        input[len] = digits[i];
+        input[len + 1] = 0;
+        itu_t_e164_set_value(&e164, input);
+        if(previous_locked ||
+           (strcmp(e164.value, previous_value) == 0 && previous_value[0] != 0 &&
+            (test_e164_is_complete(&e164) || e164.pos >= 15))) {
+            input[len] = 0;
+            itu_t_e164_set_value(&e164, input);
+        }
+    }
+
+    assert_string_equal("005519982592222", input);
+    assert_string_equal("5519982592222", e164.value);
+
+    itu_t_e164_reset_plan();
+}
+
 static void e164_test_load_plan_override(void **state)
 {
     (void) state;
@@ -1048,6 +1093,7 @@ int main(void) {
         cmocka_unit_test(e164_test_dialing_carrier_area_incremental_input),
         cmocka_unit_test(e164_test_dialing_international_incremental_limit),
         cmocka_unit_test(e164_test_dialing_omitted_carrier_incremental_limit),
+        cmocka_unit_test(e164_test_dialing_omitted_carrier_rejects_trailing_zeroes),
         cmocka_unit_test(e164_test_load_plan_override),
         cmocka_unit_test(e164_test_load_plan_memory),
         cmocka_unit_test(e164_test_area_country_override),

@@ -321,6 +321,34 @@ describe("E164Number", () => {
     assert.equal(phone.pos, 15);
   });
 
+  it("rejects trailing zeroes after complete international dialing input", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan, {
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_NONE,
+      inputMode: INPUT_MODE_DIALING,
+      carrierCode: 21,
+    });
+    let input = "";
+
+    for (const digit of "005519982592222000000000000000") {
+      const previousValue = phone.value;
+      const previousLocked = previousValue !== "" && (phone.isComplete() || phone.pos >= 15);
+      const candidate = input + digit;
+
+      phone.setValue(candidate);
+      if (previousLocked || (phone.value === previousValue && previousValue !== "" && (phone.isComplete() || phone.pos >= 15))) {
+        phone.setValue(input);
+        continue;
+      }
+      input = candidate;
+    }
+
+    assert.equal(input, "005519982592222");
+    assert.equal(phone.value, "5519982592222");
+  });
+
   it("supports digit editing helpers", () => {
     const plan = loadedPlan();
     const phone = new E164Number(plan);

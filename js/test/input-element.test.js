@@ -169,6 +169,13 @@ it("exports the web component module", async () => {
     assert.equal(fields["#component-carrier-code"].textContent, "21");
     assert.equal(fields["#component-national"].textContent, "19982592222");
     assert.equal(fields["#component-subscriber"].textContent, "982592222");
+
+    input.value = "";
+    input.insertPhoneText("005519982592222000000000000000");
+
+    assert.equal(input.rawValue, "005519982592222");
+    assert.equal(input.value, "5519982592222");
+    assert.equal(fields["#number"].value, "005519982592222");
   } finally {
     globalThis.document = previousDocument;
     globalThis.customElements = previousCustomElements;

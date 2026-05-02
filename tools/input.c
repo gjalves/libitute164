@@ -622,9 +622,11 @@ static int handle_context_key(struct input_state *state, int ch)
 static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int ch)
 {
     char previous_value[sizeof(e164->value)];
+    int previous_locked;
     int appended_digit = 0;
 
     snprintf(previous_value, sizeof(previous_value), "%s", e164->value);
+    previous_locked = previous_value[0] != 0 && (e164_is_complete(e164) || e164->pos >= 15);
 
     if(ch == KEY_BACKSPACE || ch == 127) {
         trim_field(state, FIELD_PHONE);
@@ -637,8 +639,8 @@ static void handle_phone_key(struct input_state *state, itu_t_e164_t *e164, int 
     }
 
     itu_t_e164_set_value(e164, state->phone);
-    if(appended_digit && strcmp(e164->value, previous_value) == 0 && state->phone_len > 0 &&
-       (e164_is_complete(e164) || e164->pos >= 15)) {
+    if(appended_digit && state->phone_len > 0 &&
+       (previous_locked || (strcmp(e164->value, previous_value) == 0 && (e164_is_complete(e164) || e164->pos >= 15)))) {
         trim_field(state, FIELD_PHONE);
         itu_t_e164_set_value(e164, state->phone);
     }

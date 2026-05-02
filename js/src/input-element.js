@@ -589,10 +589,11 @@ export class Itute164InputElement extends HTMLElement {
       if (!this.acceptedPhoneInputChar(ch)) continue;
 
       const previousValue = this._phone.value;
+      const previousLocked = previousValue !== "" && (this._phone.isComplete() || this._phone.pos >= 15);
       const candidate = accepted + ch;
 
       this._phone.setValue(candidate);
-      if (this._phone.value === previousValue && previousValue !== "" && (this._phone.isComplete() || this._phone.pos >= 15)) {
+      if (previousLocked || (this._phone.value === previousValue && previousValue !== "" && (this._phone.isComplete() || this._phone.pos >= 15))) {
         this._phone.setValue(accepted);
         continue;
       }
