@@ -180,6 +180,10 @@ template.innerHTML = `
       <dd id="component-carrier-code"></dd>
     </div>
     <div>
+      <dt>Carrier</dt>
+      <dd id="component-carrier-name"></dd>
+    </div>
+    <div>
       <dt>National</dt>
       <dd id="component-national"></dd>
     </div>
@@ -265,6 +269,7 @@ export class Itute164InputElement extends HTMLElement {
       componentCountryCode: this.shadowRoot.querySelector("#component-country-code"),
       componentAreaCode: this.shadowRoot.querySelector("#component-area-code"),
       componentCarrierCode: this.shadowRoot.querySelector("#component-carrier-code"),
+      componentCarrierName: this.shadowRoot.querySelector("#component-carrier-name"),
       componentNational: this.shadowRoot.querySelector("#component-national"),
       componentSubscriber: this.shadowRoot.querySelector("#component-subscriber"),
       detectedCountry: this.shadowRoot.querySelector("#detected-country"),
@@ -657,6 +662,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.componentCountryCode.textContent = components.countryCode ? String(components.countryCode) : "";
     this.fields.componentAreaCode.textContent = components.areaCode ? String(components.areaCode) : "";
     this.fields.componentCarrierCode.textContent = components.carrierCode ? String(components.carrierCode) : "";
+    this.fields.componentCarrierName.textContent = components.carrierName || "";
     this.fields.componentNational.textContent = components.nationalValue || "";
     this.fields.componentSubscriber.textContent = components.subscriberValue || "";
     this.fields.detectedCountry.textContent = this.country || "unknown";

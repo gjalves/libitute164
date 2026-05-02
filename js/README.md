@@ -105,6 +105,7 @@ Lookup helpers:
 - `plan.internationalPrefix(countryCode)`
 - `plan.carrierCodeLength(countryCode)`
 - `plan.hasCarrierCode(countryCode, carrierCode)`
+- `plan.carrierName(countryCode, carrierCode)`
 
 ### `E164Number`
 
@@ -149,6 +150,7 @@ Number methods and properties:
 - `phone.getCountryCode()`
 - `phone.getAreaCode()`
 - `phone.getCarrierCode()`
+- `phone.getCarrierName()`
 - `phone.getNationalValue()`
 - `phone.getSubscriberValue()`
 - `phone.getCountry()`

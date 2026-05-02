@@ -69,6 +69,7 @@ typedef struct {
     itu_t_e164_context_t context;
     uint8_t input_country_explicit;
     uint8_t input_area_explicit;
+    uint16_t input_carrier_code;
 
     union {
         // ITU_T_NUMBER,
@@ -143,6 +144,7 @@ const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 int itu_t_e164_cc_2_carrier_code_length(int country_code);
 int itu_t_e164_cc_has_carrier_code(int country_code, int carrier_code);
+const char *itu_t_e164_cc_2_carrier_name(int country_code, int carrier_code);
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 int itu_t_e164_load_plan_file(const char *path);
@@ -160,6 +162,7 @@ ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t s
 int itu_t_e164_get_country_code(const itu_t_e164_t *e164);
 int itu_t_e164_get_area_code(const itu_t_e164_t *e164);
 int itu_t_e164_get_carrier_code(const itu_t_e164_t *e164);
+const char *itu_t_e164_get_carrier_name(const itu_t_e164_t *e164);
 ssize_t itu_t_e164_get_national_value(const itu_t_e164_t *e164, char *buffer, ssize_t size);
 ssize_t itu_t_e164_get_subscriber_value(const itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);

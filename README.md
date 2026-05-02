@@ -182,6 +182,7 @@ ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t s
 int itu_t_e164_get_country_code(const itu_t_e164_t *e164);
 int itu_t_e164_get_area_code(const itu_t_e164_t *e164);
 int itu_t_e164_get_carrier_code(const itu_t_e164_t *e164);
+const char *itu_t_e164_get_carrier_name(const itu_t_e164_t *e164);
 ssize_t itu_t_e164_get_national_value(const itu_t_e164_t *e164, char *buffer, ssize_t size);
 ssize_t itu_t_e164_get_subscriber_value(const itu_t_e164_t *e164, char *buffer, ssize_t size);
 int itu_t_e164_add_digit(itu_t_e164_t *e164, char digit);
@@ -213,9 +214,9 @@ current context. In an area-restricted Brazilian context, for example,
 
 The component getters expose parsed pieces for applications that need to store
 or route them separately: `country_code`/DDI, `area_code`/DDD or NDC,
-`carrier_code`/CSP from context, the national value without DDI, and the
-subscriber value without DDI or DDD/NDC. Textual getters preserve significant
-zeroes.
+`carrier_code`/CSP from context, optional carrier name from the numbering
+plan, the national value without DDI, and the subscriber value without DDI or
+DDD/NDC. Textual getters preserve significant zeroes.
 
 `itu_t_e164_add_digit()` and `itu_t_e164_del_digit()` are low-level digit
 editing helpers. They update the same derived fields as `set_value()`, but
@@ -286,6 +287,7 @@ const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
 int itu_t_e164_cc_2_carrier_code_length(int country_code);
 int itu_t_e164_cc_has_carrier_code(int country_code, int carrier_code);
+const char *itu_t_e164_cc_2_carrier_name(int country_code, int carrier_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 ```
 
@@ -338,7 +340,7 @@ area-country 1 416 en_CA
 national-prefix 55 0
 international-prefix 55 00
 carrier-code-length 55 2
-carrier-code 55 15
+carrier-code 55 15 Vivo
 area 55 19 number
 subscriber 55 * ^9[0-9]{0,8}$ #####-####
 subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
@@ -353,7 +355,7 @@ area-country <country-code> <area-code> <ll_CC>
 national-prefix <country-code> <digits>
 international-prefix <country-code> <digits>
 carrier-code-length <country-code> <digits>
-carrier-code <country-code> <digits>
+carrier-code <country-code> <digits> [name]
 area <country-code> <area-code> <unknown|incomplete|number>
 subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask> [kind]
 ```
@@ -377,7 +379,8 @@ complete area code.
 carrier selection code after the national or international prefix. Repeated
 `carrier-code` entries optionally restrict accepted carrier codes for that
 country; if no carrier codes are listed, any code with the configured length is
-accepted.
+accepted. A `carrier-code` entry may include an optional display name for the
+carrier; quote it when it contains spaces.
 
 `subscriber` defines validation and formatting for the subscriber part. The
 NDC regex is matched against the area code; use `*` to match any area code.

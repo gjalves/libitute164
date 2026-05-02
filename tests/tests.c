@@ -318,6 +318,8 @@ static void e164_test_load_plan_file(void **state)
     assert_int_equal(2, itu_t_e164_cc_2_carrier_code_length(55));
     assert_true(itu_t_e164_cc_has_carrier_code(55, 15));
     assert_false(itu_t_e164_cc_has_carrier_code(55, 55));
+    assert_string_equal("Claro", itu_t_e164_cc_2_carrier_name(55, 21));
+    assert_null(itu_t_e164_cc_2_carrier_name(55, 55));
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+1");
@@ -572,6 +574,7 @@ static void e164_test_dialing_input_mode(void **state)
     assert_int_equal(55, itu_t_e164_get_country_code(&e164));
     assert_int_equal(19, itu_t_e164_get_area_code(&e164));
     assert_int_equal(15, itu_t_e164_get_carrier_code(&e164));
+    assert_string_equal("Vivo", itu_t_e164_get_carrier_name(&e164));
     itu_t_e164_get_national_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("19912345678", buffer);
     itu_t_e164_get_subscriber_value(&e164, buffer, sizeof(buffer));
@@ -589,8 +592,15 @@ static void e164_test_dialing_input_mode(void **state)
 
     itu_t_e164_set_value(&e164, "00551912345678");
     assert_string_equal("551912345678", e164.value);
+    assert_int_equal(15, itu_t_e164_get_carrier_code(&e164));
+    assert_string_equal("Vivo", itu_t_e164_get_carrier_name(&e164));
     itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("12345678", buffer);
+
+    itu_t_e164_set_value(&e164, "0021551912345678");
+    assert_string_equal("551912345678", e164.value);
+    assert_int_equal(21, itu_t_e164_get_carrier_code(&e164));
+    assert_string_equal("Claro", itu_t_e164_get_carrier_name(&e164));
 
     itu_t_e164_set_value(&e164, "001514165550123");
     assert_string_equal("14165550123", e164.value);

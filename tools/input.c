@@ -456,6 +456,7 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     char carrier_code[16];
     char national[BUFSIZ];
     char subscriber[BUFSIZ];
+    const char *carrier_name;
     int bytes;
 
     werase(win);
@@ -482,7 +483,9 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     component_int_value(carrier_code, sizeof(carrier_code), itu_t_e164_get_carrier_code(e164));
     itu_t_e164_get_national_value(e164, national, sizeof(national));
     itu_t_e164_get_subscriber_value(e164, subscriber, sizeof(subscriber));
-    mvwprintw(win, 12, 2, "DDI: %-5s DDD: %-6s CSP: %-6s", country_code, area_code, carrier_code);
+    carrier_name = itu_t_e164_get_carrier_name(e164);
+    mvwprintw(win, 12, 2, "DDI: %-5s DDD: %-6s CSP: %-6s %-12s",
+              country_code, area_code, carrier_code, carrier_name == NULL ? "" : carrier_name);
     mvwprintw(win, 13, 2, "Nacional: %-20s Assinante: %-18s", national, subscriber);
 
     country = known_country(e164);
@@ -690,10 +693,18 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
 #ifndef ITUTE164_INPUT_NO_MAIN
 static void load_numbering_plan(void)
 {
-    if(itu_t_e164_load_default_plan() == 0)
+    const char *env_path = getenv("LIBITUTE164_PLAN");
+
+    if(env_path != NULL && env_path[0] != 0 && itu_t_e164_load_plan_file(env_path) == 0)
         return;
 
-    itu_t_e164_load_plan_file("data/e164-plan.txt");
+    if(itu_t_e164_load_plan_file("data/e164-plan.txt") == 0)
+        return;
+
+    if(itu_t_e164_load_plan_file("../data/e164-plan.txt") == 0)
+        return;
+
+    itu_t_e164_load_default_plan();
 }
 
 int main() {

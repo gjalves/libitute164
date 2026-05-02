@@ -145,6 +145,7 @@ export class E164Plan {
     this.internationalPrefixes = new Map();
     this.carrierCodeLengths = new Map();
     this.carrierCodes = new Map();
+    this.carrierNames = new Map();
     this.areas = new Map();
     this.subscribers = new Map();
     this.knownCountryCodes = new Set();
@@ -227,7 +228,7 @@ export class E164Plan {
     }
 
     if (directive === "carrier-code") {
-      if (args.length !== 3) fail("carrier-code requires 2 arguments");
+      if (args.length !== 3 && args.length !== 4) fail("carrier-code requires 2 or 3 arguments");
       const carrierCode = validateRange(args[2], 0, 99);
       if (countryCode === null) fail(`invalid country code '${args[1]}'`);
       if (carrierCode === null) fail(`invalid carrier code '${args[2]}'`);
@@ -236,6 +237,7 @@ export class E164Plan {
       const entries = this.carrierCodes.get(countryCode) || new Set();
       entries.add(carrierCode);
       this.carrierCodes.set(countryCode, entries);
+      if (args.length === 4 && args[3] !== "") this.carrierNames.set(`${countryCode}:${carrierCode}`, args[3]);
       this.knownCountryCodes.add(countryCode);
       return;
     }
@@ -310,6 +312,10 @@ export class E164Plan {
     return entries.has(Number(carrierCode));
   }
 
+  carrierName(countryCode, carrierCode) {
+    return this.carrierNames.get(`${countryCode}:${Number(carrierCode)}`) || null;
+  }
+
   areaToType(countryCode, areaCode) {
     const key = `${countryCode}:${areaCode}`;
     if (this.areas.has(key)) return this.areas.get(key);
@@ -349,6 +355,7 @@ export class E164Number {
     this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER, carrierCode: 0 };
     this.inputCountryExplicit = false;
     this.inputAreaExplicit = false;
+    this.inputCarrierCode = 0;
   }
 
   setContext(context) {
@@ -394,23 +401,26 @@ export class E164Number {
     this.updateInputFlags(input, explicitInternational, explicitArea);
     const inputCountryExplicit = this.inputCountryExplicit;
     const inputAreaExplicit = this.inputAreaExplicit;
+    let inputCarrierCode = 0;
     const dialingMode = this.context.inputMode === INPUT_MODE_DIALING;
     const nationalPrefix = this.plan.nationalPrefix(this.context.countryCode);
     const nationalDialing = dialingMode && startsWith(input, nationalPrefix);
     const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
     const digits = dialingMode
-      ? this.normalizeDialingDigits(input, true)
+      ? this.normalizeDialingDigits(input, true, (carrierCode) => { inputCarrierCode = carrierCode; })
       : (explicitInternational ? input : this.normalizeContextDigits(input, explicitArea));
 
     this.init();
     this.context = context;
     this.inputCountryExplicit = inputCountryExplicit;
     this.inputAreaExplicit = inputAreaExplicit;
+    this.inputCarrierCode = inputCarrierCode;
     this.value = digits.slice(0, 15);
     this.pos = this.value.length;
     this.update();
     if (nationalDialing && carrierLength > 0) {
       const fallback = this.cloneWithValue(this.normalizeDialingDigits(input, false));
+      fallback.inputCarrierCode = inputCarrierCode;
       if (
         fallback.number.type === AREA_NUMBER &&
         fallback.number.kind !== NUMBER_KIND_UNKNOWN &&
@@ -485,7 +495,14 @@ export class E164Number {
     return digits + value;
   }
 
-  normalizeDialingDigits(value, skipCarrier = true) {
+  contextCarrierCodeValid() {
+    const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
+    return this.context.carrierCode !== 0 &&
+      numberLength(this.context.carrierCode) === carrierLength &&
+      this.plan.hasCarrierCode(this.context.countryCode, this.context.carrierCode);
+  }
+
+  normalizeDialingDigits(value, skipCarrier = true, setCarrierCode = null) {
     if (value.length === 0) return "";
     if (this.context.countryCode === 0 || this.context.areaCode === 0) return "";
 
@@ -495,8 +512,12 @@ export class E164Number {
       const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
       if (carrierLength > 0 && skipCarrier && rest.length >= carrierLength) {
         const carrierCode = fixedNumber(rest, carrierLength);
-        if (carrierCode !== null && this.plan.hasCarrierCode(this.context.countryCode, carrierCode))
+        if (carrierCode !== null && this.plan.hasCarrierCode(this.context.countryCode, carrierCode)) {
+          if (setCarrierCode) setCarrierCode(carrierCode);
           rest = rest.slice(carrierLength);
+        } else if (setCarrierCode && this.contextCarrierCodeValid()) {
+          setCarrierCode(this.context.carrierCode);
+        }
       }
       if (rest.length === 0) return "";
       return rest;
@@ -509,8 +530,12 @@ export class E164Number {
       const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
       if (carrierLength > 0 && skipCarrier && rest.length >= carrierLength) {
         const carrierCode = fixedNumber(rest, carrierLength);
-        if (carrierCode !== null && this.plan.hasCarrierCode(this.context.countryCode, carrierCode))
+        if (carrierCode !== null && this.plan.hasCarrierCode(this.context.countryCode, carrierCode)) {
+          if (setCarrierCode) setCarrierCode(carrierCode);
           rest = rest.slice(carrierLength);
+        } else if (setCarrierCode && this.contextCarrierCodeValid()) {
+          setCarrierCode(this.context.carrierCode);
+        }
       }
       if (rest.length === 0) return "";
       return country + rest;
@@ -762,7 +787,15 @@ export class E164Number {
   }
 
   getCarrierCode() {
+    if (this.inputCarrierCode !== 0) return this.inputCarrierCode;
     return this.context.carrierCode || 0;
+  }
+
+  getCarrierName() {
+    if (this.context.countryCode === 0) return null;
+    const carrierCode = this.getCarrierCode();
+    if (carrierCode === 0) return null;
+    return this.plan.carrierName(this.context.countryCode, carrierCode);
   }
 
   getNationalValue() {
@@ -780,6 +813,7 @@ export class E164Number {
       countryCode: this.getCountryCode(),
       areaCode: this.getAreaCode(),
       carrierCode: this.getCarrierCode(),
+      carrierName: this.getCarrierName(),
       nationalValue: this.getNationalValue(),
       subscriberValue: this.getSubscriberValue(),
     };

@@ -44,6 +44,7 @@ it("exports the web component module", async () => {
     "#component-country-code": createField(),
     "#component-area-code": createField(),
     "#component-carrier-code": createField(),
+    "#component-carrier-name": createField(),
     "#component-national": createField(),
     "#component-subscriber": createField(),
     "#detected-country": createField(),
@@ -155,6 +156,7 @@ it("exports the web component module", async () => {
     assert.equal(fields["#component-country-code"].textContent, "55");
     assert.equal(fields["#component-area-code"].textContent, "19");
     assert.equal(fields["#component-carrier-code"].textContent, "21");
+    assert.equal(fields["#component-carrier-name"].textContent, "Claro");
     assert.equal(fields["#component-national"].textContent, "19");
     assert.equal(fields["#component-subscriber"].textContent, "");
 
@@ -167,6 +169,7 @@ it("exports the web component module", async () => {
     assert.equal(fields["#component-country-code"].textContent, "55");
     assert.equal(fields["#component-area-code"].textContent, "19");
     assert.equal(fields["#component-carrier-code"].textContent, "21");
+    assert.equal(fields["#component-carrier-name"].textContent, "Claro");
     assert.equal(fields["#component-national"].textContent, "19982592222");
     assert.equal(fields["#component-subscriber"].textContent, "982592222");
 

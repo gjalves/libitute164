@@ -29,6 +29,7 @@ struct plan_data {
     int carrier_code_lengths[1000];
     unsigned char carrier_code_set[1000];
     unsigned char carrier_codes[1000][100];
+    char *carrier_names[1000][100];
     struct plan_area *areas[1000];
     struct plan_area_country *area_countries[1000];
     struct cc_regex *subscribers[1000];
@@ -218,6 +219,14 @@ static void free_plan_data(struct plan_data *plan)
 
         free(plan->international_prefixes[i]);
         plan->international_prefixes[i] = NULL;
+
+        {
+            int carrier_code;
+            for(carrier_code = 0; carrier_code < 100; carrier_code++) {
+                free(plan->carrier_names[i][carrier_code]);
+                plan->carrier_names[i][carrier_code] = NULL;
+            }
+        }
     }
 
     memset(plan->cc_set, 0, sizeof(plan->cc_set));
@@ -340,8 +349,9 @@ static int add_carrier_code_length(struct plan_data *plan, int country_code, int
     return 0;
 }
 
-static int add_carrier_code(struct plan_data *plan, int country_code, const char *value)
+static int add_carrier_code(struct plan_data *plan, int country_code, const char *value, const char *name)
 {
+    char *name_copy = NULL;
     char *end;
     long parsed;
     int length;
@@ -355,8 +365,16 @@ static int add_carrier_code(struct plan_data *plan, int country_code, const char
     if(length > 0 && strlen(value) != (size_t)length)
         return -1;
 
+    if(name != NULL && name[0] != 0) {
+        name_copy = plan_strdup(name);
+        if(name_copy == NULL)
+            return -1;
+    }
+
     plan->carrier_code_set[country_code] = 1;
     plan->carrier_codes[country_code][parsed] = 1;
+    free(plan->carrier_names[country_code][parsed]);
+    plan->carrier_names[country_code][parsed] = name_copy;
     return 0;
 }
 
@@ -512,10 +530,10 @@ static int parse_line(struct plan_data *plan, char *line, unsigned long line_no)
     }
 
     if(strcmp(argv[0], "carrier-code") == 0) {
-        if(argc != 3) return set_plan_error(line_no, "carrier-code requires 2 arguments");
+        if(argc != 3 && argc != 4) return set_plan_error(line_no, "carrier-code requires 2 or 3 arguments");
         if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
             return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
-        if(add_carrier_code(plan, country_code, argv[2]) != 0)
+        if(add_carrier_code(plan, country_code, argv[2], argc == 4 ? argv[3] : NULL) != 0)
             return set_plan_error(line_no, "invalid carrier code '%s'", argv[2]);
         return 0;
     }
@@ -765,6 +783,14 @@ int itu_t_e164_cc_has_carrier_code(int country_code, int carrier_code)
         return 1;
 
     return active_plan.carrier_codes[country_code][carrier_code] != 0;
+}
+
+const char *itu_t_e164_cc_2_carrier_name(int country_code, int carrier_code)
+{
+    if(country_code < 0 || country_code >= 1000 || carrier_code < 0 || carrier_code >= 100)
+        return NULL;
+
+    return active_plan.carrier_names[country_code][carrier_code];
 }
 
 int itu_t_e164_plan_area_lookup(int country_code, int area_code, enum itu_t_area_type_enum *type)

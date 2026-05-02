@@ -703,12 +703,12 @@ carrier-code-length 55 2
 carrier-code 55 12
 carrier-code 55 13
 carrier-code 55 14
-carrier-code 55 15
+carrier-code 55 15 Vivo
 carrier-code 55 16
 carrier-code 55 17
 carrier-code 55 18
 carrier-code 55 19
-carrier-code 55 21
+carrier-code 55 21 Claro
 carrier-code 55 23
 carrier-code 55 24
 carrier-code 55 25
@@ -716,7 +716,7 @@ carrier-code 55 26
 carrier-code 55 27
 carrier-code 55 28
 carrier-code 55 29
-carrier-code 55 31
+carrier-code 55 31 Oi
 carrier-code 55 32
 carrier-code 55 34
 carrier-code 55 35
@@ -724,7 +724,7 @@ carrier-code 55 36
 carrier-code 55 37
 carrier-code 55 38
 carrier-code 55 39
-carrier-code 55 41
+carrier-code 55 41 TIM
 carrier-code 55 42
 carrier-code 55 43
 carrier-code 55 45

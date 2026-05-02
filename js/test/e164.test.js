@@ -35,6 +35,7 @@ describe("E164Plan", () => {
     assert.equal(plan.carrierCodeLength(55), 2);
     assert.equal(plan.hasCarrierCode(55, 15), true);
     assert.equal(plan.hasCarrierCode(55, 55), false);
+    assert.equal(plan.carrierName(55, 21), "Claro");
   });
 
   it("rejects malformed country tags transactionally", () => {
@@ -214,6 +215,7 @@ describe("E164Number", () => {
       countryCode: 55,
       areaCode: 19,
       carrierCode: 15,
+      carrierName: "Vivo",
       nationalValue: "19912345678",
       subscriberValue: "912345678",
     });
@@ -221,6 +223,7 @@ describe("E164Number", () => {
 
     phone.setValue("01519912345678");
     assert.equal(phone.value, "5519912345678");
+    assert.equal(phone.getCarrierName(), "Vivo");
     assert.equal(phone.getDialingValue(), "912345678");
 
     phone.setValue("19912345678");
@@ -228,7 +231,14 @@ describe("E164Number", () => {
 
     phone.setValue("00551912345678");
     assert.equal(phone.value, "551912345678");
+    assert.equal(phone.getCarrierCode(), 15);
+    assert.equal(phone.getCarrierName(), "Vivo");
     assert.equal(phone.getDialingValue(), "12345678");
+
+    phone.setValue("0021551912345678");
+    assert.equal(phone.value, "551912345678");
+    assert.equal(phone.getCarrierCode(), 21);
+    assert.equal(phone.getCarrierName(), "Claro");
 
     phone.setValue("001514165550123");
     assert.equal(phone.value, "14165550123");
@@ -244,6 +254,7 @@ describe("E164Number", () => {
       countryCode: 55,
       areaCode: 800,
       carrierCode: 15,
+      carrierName: "Vivo",
       nationalValue: "8000101010",
       subscriberValue: "0101010",
     });
