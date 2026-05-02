@@ -278,6 +278,34 @@ describe("E164Number", () => {
     assert.equal(phone.getDialingValue(), "08000101010");
   });
 
+  it("limits international dialing input incrementally", () => {
+    const plan = loadedPlan();
+    const phone = new E164Number(plan, {
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_NONE,
+      inputMode: INPUT_MODE_DIALING,
+      carrierCode: 21,
+    });
+    let input = "";
+
+    for (const digit of "00218001234567890123456") {
+      const previousValue = phone.value;
+      const candidate = input + digit;
+
+      phone.setValue(candidate);
+      if (phone.value === previousValue && previousValue !== "" && (phone.isComplete() || phone.pos >= 15)) {
+        phone.setValue(input);
+        continue;
+      }
+      input = candidate;
+    }
+
+    assert.equal(input, "0021800123456789012");
+    assert.equal(phone.value, "800123456789012");
+    assert.equal(phone.pos, 15);
+  });
+
   it("supports digit editing helpers", () => {
     const plan = loadedPlan();
     const phone = new E164Number(plan);
