@@ -493,12 +493,12 @@ export class E164Number {
     if (startsWith(value, internationalPrefix)) {
       let rest = value.slice(internationalPrefix.length);
       const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
-      if (carrierLength > 0) {
-        if (!skipCarrier || rest.length <= carrierLength) return "";
+      if (carrierLength > 0 && skipCarrier && rest.length >= carrierLength) {
         const carrierCode = fixedNumber(rest, carrierLength);
-        if (carrierCode === null || !this.plan.hasCarrierCode(this.context.countryCode, carrierCode)) return "";
-        rest = rest.slice(carrierLength);
+        if (carrierCode !== null && this.plan.hasCarrierCode(this.context.countryCode, carrierCode))
+          rest = rest.slice(carrierLength);
       }
+      if (rest.length === 0) return "";
       return rest;
     }
 
@@ -507,12 +507,12 @@ export class E164Number {
     if (startsWith(value, nationalPrefix)) {
       let rest = value.slice(nationalPrefix.length);
       const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
-      if (carrierLength > 0 && skipCarrier) {
-        if (rest.length <= carrierLength) return "";
+      if (carrierLength > 0 && skipCarrier && rest.length >= carrierLength) {
         const carrierCode = fixedNumber(rest, carrierLength);
-        if (carrierCode === null || !this.plan.hasCarrierCode(this.context.countryCode, carrierCode)) return "";
-        rest = rest.slice(carrierLength);
+        if (carrierCode !== null && this.plan.hasCarrierCode(this.context.countryCode, carrierCode))
+          rest = rest.slice(carrierLength);
       }
+      if (rest.length === 0) return "";
       return country + rest;
     }
 

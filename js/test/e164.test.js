@@ -220,7 +220,8 @@ describe("E164Number", () => {
     assert.equal(phone.value, "");
 
     phone.setValue("00551912345678");
-    assert.equal(phone.value, "");
+    assert.equal(phone.value, "551912345678");
+    assert.equal(phone.getDialingValue(), "12345678");
 
     phone.setValue("001514165550123");
     assert.equal(phone.value, "14165550123");

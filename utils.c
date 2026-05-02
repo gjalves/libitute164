@@ -235,13 +235,12 @@ static size_t normalize_dialing_digits(const itu_t_e164_t *e164, const char *val
     if(starts_with(value, prefix)) {
         value += strlen(prefix);
         carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
-        if(carrier_len > 0) {
-            if(!skip_carrier || (int)strlen(value) <= carrier_len)
-                return 0;
-            if(!carrier_code_valid(e164->context.country_code, value, carrier_len))
-                return 0;
-            value += carrier_len;
+        if(carrier_len > 0 && skip_carrier && (int)strlen(value) >= carrier_len) {
+            if(carrier_code_valid(e164->context.country_code, value, carrier_len))
+                value += carrier_len;
         }
+        if(value[0] == 0)
+            return 0;
         return append_digits(digits, size, pos, value);
     }
 
@@ -251,13 +250,12 @@ static size_t normalize_dialing_digits(const itu_t_e164_t *e164, const char *val
     if(starts_with(value, prefix)) {
         value += strlen(prefix);
         carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
-        if(carrier_len > 0 && skip_carrier) {
-            if((int)strlen(value) <= carrier_len)
-                return 0;
-            if(!carrier_code_valid(e164->context.country_code, value, carrier_len))
-                return 0;
-            value += carrier_len;
+        if(carrier_len > 0 && skip_carrier && (int)strlen(value) >= carrier_len) {
+            if(carrier_code_valid(e164->context.country_code, value, carrier_len))
+                value += carrier_len;
         }
+        if(value[0] == 0)
+            return 0;
         return append_digits(digits, size, pos, value);
     }
 
