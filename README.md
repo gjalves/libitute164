@@ -34,6 +34,7 @@ const plan = E164Plan.fromText(planText);
 const phone = new E164Number(plan, {
   countryCode: 55,
   areaCode: 19,
+  carrierCode: 15,
   restriction: RESTRICT_AREA,
   acceptAlphanumeric: true,
   inputMode: INPUT_MODE_NUMBER,
@@ -88,7 +89,8 @@ if parsing fails, the previous plan remains active. Lookup helpers include
 
 `new E164Number(plan, context)` creates a number bound to a plan. The context
 fields are `countryCode`, `areaCode`, `restriction`, `acceptAlphanumeric`, and
-`inputMode`. Use `RESTRICT_NONE`, `RESTRICT_COUNTRY`, and `RESTRICT_AREA` for
+`inputMode`. `carrierCode` may be set when a country requires a carrier
+selection code for long-distance dialing. Use `RESTRICT_NONE`, `RESTRICT_COUNTRY`, and `RESTRICT_AREA` for
 the restriction value. Use `INPUT_MODE_NUMBER` for logical number entry and
 `INPUT_MODE_DIALING` for dial-string entry from a known origin; dialing mode
 requires both `countryCode` and `areaCode`.
@@ -297,6 +299,8 @@ country 55 pt_BR
 area-country 1 416 en_CA
 national-prefix 55 0
 international-prefix 55 00
+carrier-code-length 55 2
+carrier-code 55 15
 area 55 19 number
 subscriber 55 * ^9[0-9]{0,8}$ #####-####
 subscriber 598 * ^[0-9]{0,8}$ "# ### ####"
@@ -310,6 +314,8 @@ country <country-code> <ll_CC>
 area-country <country-code> <area-code> <ll_CC>
 national-prefix <country-code> <digits>
 international-prefix <country-code> <digits>
+carrier-code-length <country-code> <digits>
+carrier-code <country-code> <digits>
 area <country-code> <area-code> <unknown|incomplete|number>
 subscriber <country-code> <ndc-regex|*> <subscriber-regex> <mask> [kind]
 ```
@@ -328,6 +334,12 @@ territory, such as NANP `+1` NPAs.
 destination code hierarchy for countries whose type is `number`. Use
 `incomplete` entries for prefixes that need more digits before they become a
 complete area code.
+
+`carrier-code-length` marks countries where long-distance dialing includes a
+carrier selection code after the national or international prefix. Repeated
+`carrier-code` entries optionally restrict accepted carrier codes for that
+country; if no carrier codes are listed, any code with the configured length is
+accepted.
 
 `subscriber` defines validation and formatting for the subscriber part. The
 NDC regex is matched against the area code; use `*` to match any area code.

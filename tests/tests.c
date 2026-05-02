@@ -315,6 +315,9 @@ static void e164_test_load_plan_file(void **state)
     assert_null(itu_t_e164_area_2_country(1, 800));
     assert_string_equal("0", itu_t_e164_cc_2_national_prefix(55));
     assert_string_equal("00", itu_t_e164_cc_2_international_prefix(55));
+    assert_int_equal(2, itu_t_e164_cc_2_carrier_code_length(55));
+    assert_true(itu_t_e164_cc_has_carrier_code(55, 15));
+    assert_false(itu_t_e164_cc_has_carrier_code(55, 55));
 
     itu_t_e164_init(&e164);
     itu_t_e164_set_value(&e164, "+1");
@@ -524,7 +527,7 @@ static void e164_test_dialing_input_mode(void **state)
 {
     (void) state;
     itu_t_e164_t e164;
-    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0, ITU_T_E164_INPUT_MODE_DIALING};
+    itu_t_e164_context_t context = {55, 19, ITU_T_E164_CONTEXT_RESTRICT_NONE, 0, ITU_T_E164_INPUT_MODE_DIALING, 15};
     char buffer[BUFSIZ];
 
     assert_int_equal(0, itu_t_e164_load_plan_file("data/e164-plan.txt"));
@@ -537,7 +540,7 @@ static void e164_test_dialing_input_mode(void **state)
     itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("912345678", buffer);
 
-    itu_t_e164_set_value(&e164, "019912345678");
+    itu_t_e164_set_value(&e164, "01519912345678");
     assert_string_equal("5519912345678", e164.value);
     itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("912345678", buffer);
@@ -546,6 +549,14 @@ static void e164_test_dialing_input_mode(void **state)
     assert_string_equal("", e164.value);
 
     itu_t_e164_set_value(&e164, "00551912345678");
+    assert_string_equal("", e164.value);
+
+    itu_t_e164_set_value(&e164, "001514165550123");
+    assert_string_equal("14165550123", e164.value);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("001514165550123", buffer);
+
+    itu_t_e164_set_value(&e164, "0015551912345678");
     assert_string_equal("551912345678", e164.value);
     itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("12345678", buffer);
@@ -555,7 +566,15 @@ static void e164_test_dialing_input_mode(void **state)
     itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
     assert_string_equal("08000101010", buffer);
 
+    context.carrier_code = 0;
+    itu_t_e164_set_context(&e164, &context);
+    itu_t_e164_set_value(&e164, "01511912345678");
+    assert_string_equal("5511912345678", e164.value);
+    itu_t_e164_get_dialing_value(&e164, buffer, sizeof(buffer));
+    assert_string_equal("", buffer);
+
     context.area_code = 0;
+    context.carrier_code = 15;
     itu_t_e164_set_context(&e164, &context);
     itu_t_e164_set_value(&e164, "912345678");
     assert_string_equal("", e164.value);

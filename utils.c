@@ -82,6 +82,43 @@ static size_t append_number(char *digits, size_t size, size_t pos, unsigned long
     return append_digits(digits, size, pos, buffer);
 }
 
+static size_t number_length(unsigned long value)
+{
+    size_t len = 1;
+
+    while(value >= 10) {
+        value /= 10;
+        len++;
+    }
+
+    return len;
+}
+
+static int parse_fixed_number(const char *value, int len)
+{
+    int parsed = 0;
+    int i;
+
+    for(i = 0; i < len; i++) {
+        if(!isdigit((unsigned char)value[i]))
+            return -1;
+        parsed = parsed * 10 + value[i] - '0';
+    }
+
+    return parsed;
+}
+
+static int carrier_code_valid(int country_code, const char *value, int len)
+{
+    int carrier_code;
+
+    carrier_code = parse_fixed_number(value, len);
+    if(carrier_code < 0)
+        return 0;
+
+    return itu_t_e164_cc_has_carrier_code(country_code, carrier_code);
+}
+
 static char alpha_to_digit(int ch)
 {
     ch = toupper((unsigned char)ch);
@@ -180,11 +217,12 @@ static size_t normalize_context_digits(const itu_t_e164_t *e164, const char *val
     return append_digits(digits, size, pos, value);
 }
 
-static size_t normalize_dialing_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size)
+static size_t normalize_dialing_digits(const itu_t_e164_t *e164, const char *value, char *digits, size_t size, int skip_carrier)
 {
     const char *prefix;
     char area_code[16];
     size_t pos = 0;
+    int carrier_len;
 
     digits[0] = 0;
     if(value[0] == 0)
@@ -194,14 +232,34 @@ static size_t normalize_dialing_digits(const itu_t_e164_t *e164, const char *val
         return 0;
 
     prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
-    if(starts_with(value, prefix))
-        return append_digits(digits, size, pos, value + strlen(prefix));
+    if(starts_with(value, prefix)) {
+        value += strlen(prefix);
+        carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
+        if(carrier_len > 0) {
+            if(!skip_carrier || (int)strlen(value) <= carrier_len)
+                return 0;
+            if(!carrier_code_valid(e164->context.country_code, value, carrier_len))
+                return 0;
+            value += carrier_len;
+        }
+        return append_digits(digits, size, pos, value);
+    }
 
     pos = append_number(digits, size, pos, e164->context.country_code);
 
     prefix = itu_t_e164_cc_2_national_prefix(e164->context.country_code);
-    if(starts_with(value, prefix))
-        return append_digits(digits, size, pos, value + strlen(prefix));
+    if(starts_with(value, prefix)) {
+        value += strlen(prefix);
+        carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
+        if(carrier_len > 0 && skip_carrier) {
+            if((int)strlen(value) <= carrier_len)
+                return 0;
+            if(!carrier_code_valid(e164->context.country_code, value, carrier_len))
+                return 0;
+            value += carrier_len;
+        }
+        return append_digits(digits, size, pos, value);
+    }
 
     snprintf(area_code, sizeof(area_code), "%lu", (unsigned long)e164->context.area_code);
     if(starts_with(value, area_code)) {
@@ -398,14 +456,18 @@ static int context_rejects_value(itu_t_e164_t *e164)
 void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
 {
     const char *p;
+    const char *national_prefix;
     itu_t_e164_context_t context;
     uint8_t input_country_explicit;
     uint8_t input_area_explicit;
-    char input[sizeof(e164->value)];
+    char input[32];
     char digits[sizeof(e164->value)];
     size_t pos = 0;
     int explicit_international;
     int explicit_area;
+    int dialing_mode;
+    int national_dialing;
+    int carrier_len;
 
     if(value == NULL) {
         context = e164->context;
@@ -421,7 +483,7 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
         p = &value[1];
     else p = value;
 
-    while(*p && pos < sizeof(digits) - 1) {
+    while(*p && pos < sizeof(input) - 1) {
         if(isdigit((unsigned char)*p))
             input[pos++] = *p;
         else if(e164->context.accept_alphanumeric && isalpha((unsigned char)*p))
@@ -431,11 +493,15 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     input[pos] = 0;
 
     context = e164->context;
+    dialing_mode = e164->context.input_mode == ITU_T_E164_INPUT_MODE_DIALING;
+    national_prefix = itu_t_e164_cc_2_national_prefix(e164->context.country_code);
+    carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
+    national_dialing = dialing_mode && starts_with(input, national_prefix);
     update_input_flags(e164, input, explicit_international, explicit_area);
     input_country_explicit = e164->input_country_explicit;
     input_area_explicit = e164->input_area_explicit;
-    if(e164->context.input_mode == ITU_T_E164_INPUT_MODE_DIALING)
-        normalize_dialing_digits(e164, input, digits, sizeof(digits));
+    if(dialing_mode)
+        normalize_dialing_digits(e164, input, digits, sizeof(digits), 1);
     else if(explicit_international)
         memcpy(digits, input, pos + 1);
     else
@@ -448,6 +514,24 @@ void itu_t_e164_set_value(itu_t_e164_t *e164, const char *value)
     memcpy(e164->value, digits, strlen(digits) + 1);
     e164->pos = strlen(digits);
     itu_t_e164_update(e164);
+    if(national_dialing && carrier_len > 0) {
+        itu_t_e164_t candidate;
+        char fallback_digits[sizeof(e164->value)];
+
+        normalize_dialing_digits(e164, input, fallback_digits, sizeof(fallback_digits), 0);
+        itu_t_e164_init(&candidate);
+        candidate.context = context;
+        candidate.input_country_explicit = input_country_explicit;
+        candidate.input_area_explicit = input_area_explicit;
+        memcpy(candidate.value, fallback_digits, strlen(fallback_digits) + 1);
+        candidate.pos = strlen(fallback_digits);
+        itu_t_e164_update(&candidate);
+        if(candidate.number.type == ITU_T_AREA_NUMBER &&
+           candidate.number.kind != ITU_T_E164_NUMBER_KIND_UNKNOWN &&
+           candidate.number.kind != ITU_T_E164_NUMBER_KIND_REGULAR) {
+            *e164 = candidate;
+        }
+    }
     if(context_rejects_value(e164))
         itu_t_e164_truncate(e164, 0);
 }
@@ -570,6 +654,7 @@ ssize_t itu_t_e164_get_context_value(itu_t_e164_t *e164, char *buffer, ssize_t s
 ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t size)
 {
     const char *prefix;
+    int carrier_len;
 
     if(size <= 0)
         return 0;
@@ -587,14 +672,32 @@ ssize_t itu_t_e164_get_dialing_value(itu_t_e164_t *e164, char *buffer, ssize_t s
         }
 
         prefix = itu_t_e164_cc_2_national_prefix(e164->cc.value);
-        if(prefix != NULL && prefix[0] != 0)
+        if(prefix != NULL && prefix[0] != 0) {
+            carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->cc.value);
+            if(carrier_len > 0 && number_uses_area_parentheses(e164)) {
+                if(e164->context.carrier_code == 0 || number_length(e164->context.carrier_code) != (size_t)carrier_len ||
+                   !itu_t_e164_cc_has_carrier_code(e164->cc.value, e164->context.carrier_code))
+                    return 0;
+                return appendf(buffer, size, 0, "%s%lu%s", prefix,
+                               (unsigned long)e164->context.carrier_code, &e164->value[e164->cc.len]);
+            }
             return appendf(buffer, size, 0, "%s%s", prefix, &e164->value[e164->cc.len]);
+        }
     }
 
     if(e164->context.country_code != 0) {
         prefix = itu_t_e164_cc_2_international_prefix(e164->context.country_code);
-        if(prefix != NULL && prefix[0] != 0)
+        if(prefix != NULL && prefix[0] != 0) {
+            carrier_len = itu_t_e164_cc_2_carrier_code_length(e164->context.country_code);
+            if(carrier_len > 0) {
+                if(e164->context.carrier_code == 0 || number_length(e164->context.carrier_code) != (size_t)carrier_len ||
+                   !itu_t_e164_cc_has_carrier_code(e164->context.country_code, e164->context.carrier_code))
+                    return 0;
+                return appendf(buffer, size, 0, "%s%lu%s", prefix,
+                               (unsigned long)e164->context.carrier_code, e164->value);
+            }
             return appendf(buffer, size, 0, "%s%s", prefix, e164->value);
+        }
     }
 
     return appendf(buffer, size, 0, "+%s", e164->value);

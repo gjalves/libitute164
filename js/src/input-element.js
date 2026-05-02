@@ -117,6 +117,11 @@ template.innerHTML = `
     </label>
 
     <label>
+      Carrier
+      <input id="carrier" inputmode="numeric">
+    </label>
+
+    <label>
       Mode
       <select id="mode">
         <option value="0">Number</option>
@@ -204,7 +209,7 @@ function modeToAttribute(value) {
 }
 
 export class Itute164InputElement extends HTMLElement {
-  static observedAttributes = ["country-code", "area-code", "restriction", "input-mode", "accept-alphanumeric", "value", "show-details"];
+  static observedAttributes = ["country-code", "area-code", "carrier-code", "restriction", "input-mode", "accept-alphanumeric", "value", "show-details"];
 
   constructor() {
     super();
@@ -214,6 +219,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields = {
       country: this.shadowRoot.querySelector("#country"),
       area: this.shadowRoot.querySelector("#area"),
+      carrier: this.shadowRoot.querySelector("#carrier"),
       mode: this.shadowRoot.querySelector("#mode"),
       restriction: this.shadowRoot.querySelector("#restriction"),
       alphanumeric: this.shadowRoot.querySelector("#alphanumeric"),
@@ -237,7 +243,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.number.addEventListener("beforeinput", this);
     this.fields.number.addEventListener("keydown", this);
     this.fields.number.addEventListener("focus", this);
-    for (const input of [this.fields.country, this.fields.area, this.fields.mode, this.fields.restriction, this.fields.alphanumeric])
+    for (const input of [this.fields.country, this.fields.area, this.fields.carrier, this.fields.mode, this.fields.restriction, this.fields.alphanumeric])
       input.addEventListener("input", this);
 
     this.syncFromAttributes();
@@ -248,7 +254,7 @@ export class Itute164InputElement extends HTMLElement {
     this.fields.number.removeEventListener("beforeinput", this);
     this.fields.number.removeEventListener("keydown", this);
     this.fields.number.removeEventListener("focus", this);
-    for (const input of [this.fields.country, this.fields.area, this.fields.mode, this.fields.restriction, this.fields.alphanumeric])
+    for (const input of [this.fields.country, this.fields.area, this.fields.carrier, this.fields.mode, this.fields.restriction, this.fields.alphanumeric])
       input.removeEventListener("input", this);
   }
 
@@ -298,6 +304,16 @@ export class Itute164InputElement extends HTMLElement {
   set areaCode(value) {
     this.fields.area.value = value ? String(value) : "";
     this.syncAttribute("area-code", this.fields.area.value);
+    this.rebuildFromContext();
+  }
+
+  get carrierCode() {
+    return parseNumber(this.fields.carrier.value);
+  }
+
+  set carrierCode(value) {
+    this.fields.carrier.value = value ? String(value) : "";
+    this.syncAttribute("carrier-code", this.fields.carrier.value);
     this.rebuildFromContext();
   }
 
@@ -388,6 +404,7 @@ export class Itute164InputElement extends HTMLElement {
   syncFromAttributes() {
     this.fields.country.value = this.getAttribute("country-code") || "";
     this.fields.area.value = this.getAttribute("area-code") || "";
+    this.fields.carrier.value = this.getAttribute("carrier-code") || "";
     this.fields.mode.value = String(modeFromAttribute(this.getAttribute("input-mode")));
     this.fields.restriction.value = String(restrictionFromAttribute(this.getAttribute("restriction")));
     this.fields.alphanumeric.checked = this.hasAttribute("accept-alphanumeric");
@@ -411,6 +428,7 @@ export class Itute164InputElement extends HTMLElement {
   syncContextAttributes() {
     this.syncAttribute("country-code", this.fields.country.value);
     this.syncAttribute("area-code", this.fields.area.value);
+    this.syncAttribute("carrier-code", this.fields.carrier.value);
     this.syncAttribute("input-mode", modeToAttribute(modeFromAttribute(this.fields.mode.value)));
     this.syncAttribute("restriction", restrictionToAttribute(restrictionFromAttribute(this.fields.restriction.value)));
     this.syncBooleanAttribute("accept-alphanumeric", this.fields.alphanumeric.checked);
@@ -421,6 +439,7 @@ export class Itute164InputElement extends HTMLElement {
 
     const countryCode = parseNumber(this.fields.country.value);
     const areaCode = countryCode === 0 ? 0 : parseNumber(this.fields.area.value);
+    const carrierCode = countryCode === 0 ? 0 : parseNumber(this.fields.carrier.value);
     let restriction = restrictionFromAttribute(this.fields.restriction.value);
     let inputMode = modeFromAttribute(this.fields.mode.value);
 
@@ -437,6 +456,7 @@ export class Itute164InputElement extends HTMLElement {
       restriction,
       acceptAlphanumeric: this.fields.alphanumeric.checked,
       inputMode,
+      carrierCode,
     });
   }
 

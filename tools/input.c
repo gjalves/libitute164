@@ -6,11 +6,12 @@
 #include <libitute164.h>
 
 #define INPUT_WIDTH 72
-#define PHONE_INPUT_SIZE 16
+#define PHONE_INPUT_SIZE 32
 
 enum input_field {
     FIELD_COUNTRY,
     FIELD_AREA,
+    FIELD_CARRIER,
     FIELD_RESTRICTION,
     FIELD_MODE,
     FIELD_ALPHANUMERIC,
@@ -21,11 +22,13 @@ enum input_field {
 struct input_state {
     char country[8];
     char area[8];
+    char carrier[8];
     char restriction[2];
     char mode[2];
     char phone[PHONE_INPUT_SIZE];
     size_t country_len;
     size_t area_len;
+    size_t carrier_len;
     size_t restriction_len;
     size_t mode_len;
     size_t phone_len;
@@ -87,6 +90,7 @@ static void apply_context(itu_t_e164_t *e164, const struct input_state *state)
     context.country_code = parse_number(state->country);
     if(context.country_code != 0) {
         context.area_code = parse_number(state->area);
+        context.carrier_code = parse_number(state->carrier);
         context.restriction = parse_number(state->restriction);
         if(context.restriction > ITU_T_E164_CONTEXT_RESTRICT_AREA)
             context.restriction = ITU_T_E164_CONTEXT_RESTRICT_NONE;
@@ -122,6 +126,8 @@ static const char *field_value(const struct input_state *state, enum input_field
             return state->country;
         case FIELD_AREA:
             return state->area;
+        case FIELD_CARRIER:
+            return state->carrier;
         case FIELD_RESTRICTION:
             return state->restriction;
         case FIELD_MODE:
@@ -142,6 +148,8 @@ static size_t *field_len(struct input_state *state, enum input_field field)
             return &state->country_len;
         case FIELD_AREA:
             return &state->area_len;
+        case FIELD_CARRIER:
+            return &state->carrier_len;
         case FIELD_RESTRICTION:
             return &state->restriction_len;
         case FIELD_MODE:
@@ -162,6 +170,8 @@ static char *field_buffer(struct input_state *state, enum input_field field)
             return state->country;
         case FIELD_AREA:
             return state->area;
+        case FIELD_CARRIER:
+            return state->carrier;
         case FIELD_RESTRICTION:
             return state->restriction;
         case FIELD_MODE:
@@ -182,6 +192,8 @@ static size_t field_size(enum input_field field)
             return sizeof(((struct input_state *)0)->country);
         case FIELD_AREA:
             return sizeof(((struct input_state *)0)->area);
+        case FIELD_CARRIER:
+            return sizeof(((struct input_state *)0)->carrier);
         case FIELD_RESTRICTION:
             return sizeof(((struct input_state *)0)->restriction);
         case FIELD_MODE:
@@ -348,14 +360,16 @@ static int field_y(enum input_field field)
             return 2;
         case FIELD_AREA:
             return 3;
-        case FIELD_RESTRICTION:
+        case FIELD_CARRIER:
             return 4;
-        case FIELD_MODE:
+        case FIELD_RESTRICTION:
             return 5;
-        case FIELD_ALPHANUMERIC:
+        case FIELD_MODE:
             return 6;
+        case FIELD_ALPHANUMERIC:
+            return 7;
         case FIELD_PHONE:
-            return 8;
+            return 9;
         default:
             return 2;
     }
@@ -436,28 +450,29 @@ static void draw_form(WINDOW *win, const struct input_state *state, itu_t_e164_t
     mvwprintw(win, 0, 2, " Phone ");
     draw_field(win, 2, "DDI", field_value(state, FIELD_COUNTRY), state->field == FIELD_COUNTRY);
     draw_field(win, 3, "DDD", field_value(state, FIELD_AREA), state->field == FIELD_AREA);
-    draw_restriction_field(win, 4, state);
-    draw_mode_field(win, 5, state);
-    draw_toggle_field(win, 6, "Alfanumerico", state->accept_alphanumeric, state->field == FIELD_ALPHANUMERIC);
+    draw_field(win, 4, "Operadora", field_value(state, FIELD_CARRIER), state->field == FIELD_CARRIER);
+    draw_restriction_field(win, 5, state);
+    draw_mode_field(win, 6, state);
+    draw_toggle_field(win, 7, "Alfanumerico", state->accept_alphanumeric, state->field == FIELD_ALPHANUMERIC);
 
     bytes = get_display_phone_value(state, e164, buffer, sizeof(buffer));
-    draw_field(win, 8, "Numero", buffer, state->field == FIELD_PHONE);
+    draw_field(win, 9, "Numero", buffer, state->field == FIELD_PHONE);
 
     itu_t_e164_get_value(e164, buffer, sizeof(buffer));
-    draw_field(win, 9, "Completo", e164->pos == 0 ? "" : buffer, 0);
+    draw_field(win, 10, "Completo", e164->pos == 0 ? "" : buffer, 0);
 
     itu_t_e164_get_dialing_value(e164, buffer, sizeof(buffer));
-    draw_field(win, 10, "Discagem", buffer, 0);
+    draw_field(win, 11, "Discagem", buffer, 0);
 
     country = known_country(e164);
     if(country != NULL)
-        mvwprintw(win, 11, 2, "Pais: %-18s", country);
+        mvwprintw(win, 12, 2, "Pais: %-18s", country);
     else
-        mvwprintw(win, 11, 2, "%-24s", "");
+        mvwprintw(win, 12, 2, "%-24s", "");
 
-    mvwprintw(win, 11, 34, "Tipo: %-10s", itu_t_e164_number_kind_name(itu_t_e164_get_number_kind(e164)));
-    mvwprintw(win, 12, 2, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
-    mvwprintw(win, 13, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
+    mvwprintw(win, 12, 34, "Tipo: %-10s", itu_t_e164_number_kind_name(itu_t_e164_get_number_kind(e164)));
+    mvwprintw(win, 13, 2, "Status: %-10s", e164_is_complete(e164) ? "completo" : "incompleto");
+    mvwprintw(win, 14, 2, "TAB/baixo avancam. Shift-TAB/cima voltam. Enter conclui.");
     wmove(win, field_y(state->field), state->field == FIELD_PHONE ? 18 + bytes : field_cursor_x(state));
     wrefresh(win);
 }
@@ -606,7 +621,7 @@ void get_phone_number(WINDOW *win, itu_t_e164_t *e164) {
 }
 
 int main() {
-    int startx, starty, width = INPUT_WIDTH, height = 15;
+    int startx, starty, width = INPUT_WIDTH, height = 16;
     WINDOW *win;
 
     itu_t_e164_t e164;

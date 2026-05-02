@@ -49,6 +49,7 @@ typedef struct {
     uint8_t restriction;
     uint8_t accept_alphanumeric;
     uint8_t input_mode;
+    uint16_t carrier_code;
 } itu_t_e164_context_t;
 
 #define ITU_T_E164_CONTEXT_RESTRICT_NONE 0
@@ -140,6 +141,8 @@ enum itu_t_e164_number_kind_enum itu_t_e164_get_number_kind(const itu_t_e164_t *
 const char *itu_t_e164_number_kind_name(enum itu_t_e164_number_kind_enum kind);
 const char *itu_t_e164_cc_2_national_prefix(int country_code);
 const char *itu_t_e164_cc_2_international_prefix(int country_code);
+int itu_t_e164_cc_2_carrier_code_length(int country_code);
+int itu_t_e164_cc_has_carrier_code(int country_code, int carrier_code);
 enum itu_t_area_type_enum itu_t_e164_area_2_type(int country_code, int area_code);
 struct cc_regex *itu_t_e164_cc_subscriber_regex(int country_code);
 int itu_t_e164_load_plan_file(const char *path);

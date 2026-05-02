@@ -26,6 +26,9 @@ struct plan_data {
     char *countries[1000];
     char *national_prefixes[1000];
     char *international_prefixes[1000];
+    int carrier_code_lengths[1000];
+    unsigned char carrier_code_set[1000];
+    unsigned char carrier_codes[1000][100];
     struct plan_area *areas[1000];
     struct plan_area_country *area_countries[1000];
     struct cc_regex *subscribers[1000];
@@ -219,6 +222,9 @@ static void free_plan_data(struct plan_data *plan)
 
     memset(plan->cc_set, 0, sizeof(plan->cc_set));
     memset(plan->cc, 0, sizeof(plan->cc));
+    memset(plan->carrier_code_lengths, 0, sizeof(plan->carrier_code_lengths));
+    memset(plan->carrier_code_set, 0, sizeof(plan->carrier_code_set));
+    memset(plan->carrier_codes, 0, sizeof(plan->carrier_codes));
 }
 
 void itu_t_e164_reset_plan(void)
@@ -322,6 +328,35 @@ static int add_prefix(char **prefixes, int country_code, const char *prefix)
 
     free(prefixes[country_code]);
     prefixes[country_code] = copy;
+    return 0;
+}
+
+static int add_carrier_code_length(struct plan_data *plan, int country_code, int length)
+{
+    if(length < 0 || length > 8)
+        return -1;
+
+    plan->carrier_code_lengths[country_code] = length;
+    return 0;
+}
+
+static int add_carrier_code(struct plan_data *plan, int country_code, const char *value)
+{
+    char *end;
+    long parsed;
+    int length;
+
+    errno = 0;
+    parsed = strtol(value, &end, 10);
+    if(errno != 0 || *end != 0 || parsed < 0 || parsed > 99)
+        return -1;
+
+    length = plan->carrier_code_lengths[country_code];
+    if(length > 0 && strlen(value) != (size_t)length)
+        return -1;
+
+    plan->carrier_code_set[country_code] = 1;
+    plan->carrier_codes[country_code][parsed] = 1;
     return 0;
 }
 
@@ -460,6 +495,28 @@ static int parse_line(struct plan_data *plan, char *line, unsigned long line_no)
             return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
         if(add_prefix(plan->international_prefixes, country_code, argv[2]) != 0)
             return set_plan_error(line_no, "invalid international prefix '%s'", argv[2]);
+        return 0;
+    }
+
+    if(strcmp(argv[0], "carrier-code-length") == 0) {
+        int length;
+
+        if(argc != 3) return set_plan_error(line_no, "carrier-code-length requires 2 arguments");
+        if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
+            return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
+        if(parse_int_range(argv[2], 0, 8, &length) != 0)
+            return set_plan_error(line_no, "invalid carrier code length '%s'", argv[2]);
+        if(add_carrier_code_length(plan, country_code, length) != 0)
+            return set_plan_error(line_no, "could not store carrier code length");
+        return 0;
+    }
+
+    if(strcmp(argv[0], "carrier-code") == 0) {
+        if(argc != 3) return set_plan_error(line_no, "carrier-code requires 2 arguments");
+        if(parse_int_range(argv[1], 0, 999, &country_code) != 0)
+            return set_plan_error(line_no, "invalid country code '%s'", argv[1]);
+        if(add_carrier_code(plan, country_code, argv[2]) != 0)
+            return set_plan_error(line_no, "invalid carrier code '%s'", argv[2]);
         return 0;
     }
 
@@ -686,6 +743,28 @@ const char *itu_t_e164_cc_2_international_prefix(int country_code)
         return NULL;
 
     return active_plan.international_prefixes[country_code];
+}
+
+int itu_t_e164_cc_2_carrier_code_length(int country_code)
+{
+    if(country_code < 0 || country_code >= 1000)
+        return 0;
+
+    return active_plan.carrier_code_lengths[country_code];
+}
+
+int itu_t_e164_cc_has_carrier_code(int country_code, int carrier_code)
+{
+    if(country_code < 0 || country_code >= 1000)
+        return 0;
+
+    if(carrier_code < 0 || carrier_code > 99)
+        return 0;
+
+    if(!active_plan.carrier_code_set[country_code])
+        return 1;
+
+    return active_plan.carrier_codes[country_code][carrier_code] != 0;
 }
 
 int itu_t_e164_plan_area_lookup(int country_code, int area_code, enum itu_t_area_type_enum *type)

@@ -15,6 +15,7 @@ const plan = E164Plan.fromText(planText);
 const phone = new E164Number(plan, {
   countryCode: 55,
   areaCode: 19,
+  carrierCode: 15,
   restriction: RESTRICT_AREA,
   acceptAlphanumeric: true,
   inputMode: INPUT_MODE_NUMBER,
@@ -55,6 +56,7 @@ input.addEventListener("itute164-change", (event) => {
 <itute164-input
   country-code="55"
   area-code="19"
+  carrier-code="15"
   input-mode="number"
   restriction="area"
   value="912345678"
@@ -69,6 +71,7 @@ Attributes and properties:
 - `rawValue`
 - `countryCode` / `country-code`
 - `areaCode` / `area-code`
+- `carrierCode` / `carrier-code`
 - `inputMode` / `input-mode`
 - `restriction`
 - `acceptAlphanumeric` / `accept-alphanumeric`
@@ -98,6 +101,8 @@ Lookup helpers:
 - `plan.areaToCountry(countryCode, areaCode)`
 - `plan.nationalPrefix(countryCode)`
 - `plan.internationalPrefix(countryCode)`
+- `plan.carrierCodeLength(countryCode)`
+- `plan.hasCarrierCode(countryCode, carrierCode)`
 
 ### `E164Number`
 
@@ -107,6 +112,7 @@ Context fields:
 
 - `countryCode`
 - `areaCode`
+- `carrierCode`
 - `restriction`
 - `acceptAlphanumeric`
 - `inputMode`
@@ -126,7 +132,8 @@ Input mode constants:
 configured country or area context while normalizing to E.164. `INPUT_MODE_DIALING`
 expects a dial string from a known origin and requires both `countryCode` and
 `areaCode`; national and international prefixes from the plan are then treated
-as required dialing syntax.
+as required dialing syntax. When the plan defines carrier selection codes, set
+`carrierCode` to generate complete long-distance dialing strings.
 
 Number methods and properties:
 

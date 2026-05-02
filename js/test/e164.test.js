@@ -32,6 +32,9 @@ describe("E164Plan", () => {
     assert.equal(plan.areaToCountry(1, 800), null);
     assert.equal(plan.nationalPrefix(55), "0");
     assert.equal(plan.internationalPrefix(55), "00");
+    assert.equal(plan.carrierCodeLength(55), 2);
+    assert.equal(plan.hasCarrierCode(55, 15), true);
+    assert.equal(plan.hasCarrierCode(55, 55), false);
   });
 
   it("rejects malformed country tags transactionally", () => {
@@ -202,13 +205,14 @@ describe("E164Number", () => {
       areaCode: 19,
       restriction: RESTRICT_NONE,
       inputMode: INPUT_MODE_DIALING,
+      carrierCode: 15,
     });
 
     phone.setValue("912345678");
     assert.equal(phone.value, "5519912345678");
     assert.equal(phone.getDialingValue(), "912345678");
 
-    phone.setValue("019912345678");
+    phone.setValue("01519912345678");
     assert.equal(phone.value, "5519912345678");
     assert.equal(phone.getDialingValue(), "912345678");
 
@@ -216,12 +220,29 @@ describe("E164Number", () => {
     assert.equal(phone.value, "");
 
     phone.setValue("00551912345678");
+    assert.equal(phone.value, "");
+
+    phone.setValue("001514165550123");
+    assert.equal(phone.value, "14165550123");
+    assert.equal(phone.getDialingValue(), "001514165550123");
+
+    phone.setValue("0015551912345678");
     assert.equal(phone.value, "551912345678");
     assert.equal(phone.getDialingValue(), "12345678");
 
     phone.setValue("08000101010");
     assert.equal(phone.value, "558000101010");
     assert.equal(phone.getDialingValue(), "08000101010");
+
+    phone.setContext({
+      countryCode: 55,
+      areaCode: 19,
+      restriction: RESTRICT_NONE,
+      inputMode: INPUT_MODE_DIALING,
+    });
+    phone.setValue("01511912345678");
+    assert.equal(phone.value, "5511912345678");
+    assert.equal(phone.getDialingValue(), "");
 
     phone.setContext({ countryCode: 55, inputMode: INPUT_MODE_DIALING });
     phone.setValue("912345678");

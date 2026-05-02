@@ -94,6 +94,15 @@ function appendNumber(value) {
   return String(value);
 }
 
+function numberLength(value) {
+  return String(Number(value || 0)).length;
+}
+
+function fixedNumber(value, length) {
+  const digits = value.slice(0, length);
+  return /^[0-9]+$/.test(digits) && digits.length === length ? Number(digits) : null;
+}
+
 function startsWith(value, prefix) {
   return Boolean(prefix) && value.startsWith(prefix);
 }
@@ -134,6 +143,8 @@ export class E164Plan {
     this.areaCountries = new Map();
     this.nationalPrefixes = new Map();
     this.internationalPrefixes = new Map();
+    this.carrierCodeLengths = new Map();
+    this.carrierCodes = new Map();
     this.areas = new Map();
     this.subscribers = new Map();
     this.knownCountryCodes = new Set();
@@ -205,6 +216,30 @@ export class E164Plan {
       return;
     }
 
+    if (directive === "carrier-code-length") {
+      if (args.length !== 3) fail("carrier-code-length requires 2 arguments");
+      const length = validateRange(args[2], 0, 8);
+      if (countryCode === null) fail(`invalid country code '${args[1]}'`);
+      if (length === null) fail(`invalid carrier code length '${args[2]}'`);
+      this.carrierCodeLengths.set(countryCode, length);
+      this.knownCountryCodes.add(countryCode);
+      return;
+    }
+
+    if (directive === "carrier-code") {
+      if (args.length !== 3) fail("carrier-code requires 2 arguments");
+      const carrierCode = validateRange(args[2], 0, 99);
+      if (countryCode === null) fail(`invalid country code '${args[1]}'`);
+      if (carrierCode === null) fail(`invalid carrier code '${args[2]}'`);
+      const length = this.carrierCodeLength(countryCode);
+      if (length > 0 && args[2].length !== length) fail(`invalid carrier code '${args[2]}'`);
+      const entries = this.carrierCodes.get(countryCode) || new Set();
+      entries.add(carrierCode);
+      this.carrierCodes.set(countryCode, entries);
+      this.knownCountryCodes.add(countryCode);
+      return;
+    }
+
     if (directive === "area") {
       if (args.length !== 4) fail("area requires 3 arguments");
       const areaCode = validateRange(args[2], 0, 9999);
@@ -265,6 +300,16 @@ export class E164Plan {
     return this.internationalPrefixes.get(countryCode) || null;
   }
 
+  carrierCodeLength(countryCode) {
+    return this.carrierCodeLengths.get(countryCode) || 0;
+  }
+
+  hasCarrierCode(countryCode, carrierCode) {
+    const entries = this.carrierCodes.get(countryCode);
+    if (!entries) return true;
+    return entries.has(Number(carrierCode));
+  }
+
   areaToType(countryCode, areaCode) {
     const key = `${countryCode}:${areaCode}`;
     if (this.areas.has(key)) return this.areas.get(key);
@@ -301,14 +346,14 @@ export class E164Number {
     this.rawPhone = 0;
     this.cc = { type: CC_UNKNOWN, len: 0, value: 0 };
     this.number = { type: AREA_UNKNOWN, ndcLen: 0, ndc: 0, snLen: 0, sn: 0, mask: null, kind: NUMBER_KIND_UNKNOWN };
-    this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER };
+    this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER, carrierCode: 0 };
     this.inputCountryExplicit = false;
     this.inputAreaExplicit = false;
   }
 
   setContext(context) {
     if (!context) {
-      this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER };
+      this.context = { countryCode: 0, areaCode: 0, restriction: RESTRICT_NONE, acceptAlphanumeric: false, inputMode: INPUT_MODE_NUMBER, carrierCode: 0 };
       this.inputCountryExplicit = false;
       this.inputAreaExplicit = false;
       return;
@@ -321,6 +366,7 @@ export class E164Number {
       restriction: Number(context.restriction || RESTRICT_NONE),
       acceptAlphanumeric: Boolean(context.acceptAlphanumeric ?? context.accept_alphanumeric),
       inputMode: inputMode === INPUT_MODE_DIALING ? INPUT_MODE_DIALING : INPUT_MODE_NUMBER,
+      carrierCode: Number(context.carrierCode || context.carrier_code || 0),
     };
     this.inputCountryExplicit = false;
     this.inputAreaExplicit = false;
@@ -338,7 +384,7 @@ export class E164Number {
     const explicitArea = value[0] === "(";
     let input = "";
 
-    for (let i = explicitInternational || explicitArea ? 1 : 0; i < value.length && input.length < 15; i++) {
+    for (let i = explicitInternational || explicitArea ? 1 : 0; i < value.length && input.length < 31; i++) {
       const ch = value[i];
       if (/[0-9]/.test(ch)) input += ch;
       else if (this.context.acceptAlphanumeric && /[A-Za-z]/.test(ch)) input += alphaToDigit(ch);
@@ -348,8 +394,12 @@ export class E164Number {
     this.updateInputFlags(input, explicitInternational, explicitArea);
     const inputCountryExplicit = this.inputCountryExplicit;
     const inputAreaExplicit = this.inputAreaExplicit;
-    const digits = this.context.inputMode === INPUT_MODE_DIALING
-      ? this.normalizeDialingDigits(input)
+    const dialingMode = this.context.inputMode === INPUT_MODE_DIALING;
+    const nationalPrefix = this.plan.nationalPrefix(this.context.countryCode);
+    const nationalDialing = dialingMode && startsWith(input, nationalPrefix);
+    const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
+    const digits = dialingMode
+      ? this.normalizeDialingDigits(input, true)
       : (explicitInternational ? input : this.normalizeContextDigits(input, explicitArea));
 
     this.init();
@@ -359,6 +409,16 @@ export class E164Number {
     this.value = digits.slice(0, 15);
     this.pos = this.value.length;
     this.update();
+    if (nationalDialing && carrierLength > 0) {
+      const fallback = this.cloneWithValue(this.normalizeDialingDigits(input, false));
+      if (
+        fallback.number.type === AREA_NUMBER &&
+        fallback.number.kind !== NUMBER_KIND_UNKNOWN &&
+        fallback.number.kind !== NUMBER_KIND_REGULAR
+      ) {
+        Object.assign(this, fallback);
+      }
+    }
 
     if (this.contextRejectsValue()) this.truncate(0);
   }
@@ -425,16 +485,36 @@ export class E164Number {
     return digits + value;
   }
 
-  normalizeDialingDigits(value) {
+  normalizeDialingDigits(value, skipCarrier = true) {
     if (value.length === 0) return "";
     if (this.context.countryCode === 0 || this.context.areaCode === 0) return "";
 
     const internationalPrefix = this.plan.internationalPrefix(this.context.countryCode);
-    if (startsWith(value, internationalPrefix)) return value.slice(internationalPrefix.length);
+    if (startsWith(value, internationalPrefix)) {
+      let rest = value.slice(internationalPrefix.length);
+      const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
+      if (carrierLength > 0) {
+        if (!skipCarrier || rest.length <= carrierLength) return "";
+        const carrierCode = fixedNumber(rest, carrierLength);
+        if (carrierCode === null || !this.plan.hasCarrierCode(this.context.countryCode, carrierCode)) return "";
+        rest = rest.slice(carrierLength);
+      }
+      return rest;
+    }
 
     const country = appendNumber(this.context.countryCode);
     const nationalPrefix = this.plan.nationalPrefix(this.context.countryCode);
-    if (startsWith(value, nationalPrefix)) return country + value.slice(nationalPrefix.length);
+    if (startsWith(value, nationalPrefix)) {
+      let rest = value.slice(nationalPrefix.length);
+      const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
+      if (carrierLength > 0 && skipCarrier) {
+        if (rest.length <= carrierLength) return "";
+        const carrierCode = fixedNumber(rest, carrierLength);
+        if (carrierCode === null || !this.plan.hasCarrierCode(this.context.countryCode, carrierCode)) return "";
+        rest = rest.slice(carrierLength);
+      }
+      return country + rest;
+    }
 
     const area = appendNumber(this.context.areaCode);
     if (startsWith(value, area)) return "";
@@ -630,12 +710,34 @@ export class E164Number {
       }
 
       const nationalPrefix = this.plan.nationalPrefix(this.cc.value);
-      if (nationalPrefix) return `${nationalPrefix}${this.value.slice(this.cc.len)}`;
+      if (nationalPrefix) {
+        const carrierLength = this.plan.carrierCodeLength(this.cc.value);
+        if (carrierLength > 0 && this.numberUsesAreaParentheses()) {
+          if (
+            this.context.carrierCode === 0 ||
+            numberLength(this.context.carrierCode) !== carrierLength ||
+            !this.plan.hasCarrierCode(this.cc.value, this.context.carrierCode)
+          ) return "";
+          return `${nationalPrefix}${this.context.carrierCode}${this.value.slice(this.cc.len)}`;
+        }
+        return `${nationalPrefix}${this.value.slice(this.cc.len)}`;
+      }
     }
 
     if (this.context.countryCode !== 0) {
       const internationalPrefix = this.plan.internationalPrefix(this.context.countryCode);
-      if (internationalPrefix) return `${internationalPrefix}${this.value}`;
+      if (internationalPrefix) {
+        const carrierLength = this.plan.carrierCodeLength(this.context.countryCode);
+        if (carrierLength > 0) {
+          if (
+            this.context.carrierCode === 0 ||
+            numberLength(this.context.carrierCode) !== carrierLength ||
+            !this.plan.hasCarrierCode(this.context.countryCode, this.context.carrierCode)
+          ) return "";
+          return `${internationalPrefix}${this.context.carrierCode}${this.value}`;
+        }
+        return `${internationalPrefix}${this.value}`;
+      }
     }
 
     return `+${this.value}`;
@@ -669,6 +771,18 @@ export class E164Number {
     const copy = new E164Number(this.plan);
     Object.assign(copy, JSON.parse(JSON.stringify(this)));
     copy.plan = this.plan;
+    return copy;
+  }
+
+  cloneWithValue(value) {
+    const copy = new E164Number(this.plan);
+    copy.context = { ...this.context };
+    copy.inputCountryExplicit = this.inputCountryExplicit;
+    copy.inputAreaExplicit = this.inputAreaExplicit;
+    copy.value = value.slice(0, 15);
+    copy.pos = copy.value.length;
+    copy.refreshRawPhone();
+    copy.update();
     return copy;
   }
 }
